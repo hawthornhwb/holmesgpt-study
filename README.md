@@ -1,3 +1,21 @@
+# HolmesGPT 个人学习记录
+
+本仓库是 [hawthornhwb](https://github.com/hawthornhwb) 基于开源项目
+[HolmesGPT/holmesgpt](https://github.com/HolmesGPT/holmesgpt) 整理的个人学习仓库，
+仅用于个人学习、源码阅读和实验记录。
+
+项目主体代码来自 HolmesGPT 及其贡献者；我在此基础上补充学习笔记、源码流程分析和本地 Trace 实验工具。
+本仓库为个人学习用途，与 HolmesGPT 官方项目无隶属关系，也不代表官方发布或维护。
+原项目的 [Apache-2.0 许可证](LICENSE) 与版权声明予以保留；“个人学习用途”描述的是本仓库的使用目的。
+
+- [学习记录目录](study/README.md)
+- [Day 1：Agent 工具循环与源码调用链](study/day1/README.md)
+- [Day 1：本地 Trace 实验](study/day1/trace-guide.md)
+
+以下保留上游项目的原始介绍。
+
+---
+
 <div align="center">
   <h1 align="center">HolmesGPT — The CNCF SRE Agent</h1>
 

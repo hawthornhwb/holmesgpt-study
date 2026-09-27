@@ -1,0 +1,15 @@
+# HolmesGPT 学习记录
+
+这是 [hawthornhwb](https://github.com/hawthornhwb) 参考
+[HolmesGPT/holmesgpt](https://github.com/HolmesGPT/holmesgpt) 进行的个人学习记录，
+用于源码阅读、Agent 工具调用流程分析和实验练习。项目主体代码及原始设计归上游项目与其贡献者所有。
+
+每日学习内容统一放在 `study/dayN/` 目录中：
+
+- `README.md`：当天的学习记录、关键结论和完成情况。
+- 其他文件：当天的实验结果、基线报告或专项产出。
+
+## 目录
+
+- [Day 1](day1/README.md)：理解 Agent 工具循环，接入 DeepSeek V4.1 Flash，并沿源码追踪完整调用链。
+- [Day 1 本地 Trace 实验](day1/trace-guide.md)：按轮次观察真实模型响应、工具结果和源码执行位置。
