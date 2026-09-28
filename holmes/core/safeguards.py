@@ -12,9 +12,9 @@ def _has_previous_exact_same_tool_call(
     for tool_call in tool_calls:
         params = tool_call.get("result", {}).get("params")
         if (
-            tool_call.get("tool_name") == tool_name
+            tool_call.get("tool_name") == tool_name # 判断工具名是否🤮
             and params is not None
-            and params == tool_params
+            and params == tool_params # 判断参数是否完全相等
         ):
             return True
 

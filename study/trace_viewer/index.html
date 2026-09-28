@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Holmes · 执行轨迹</title>
+  <style>/* VIEWER_CSS */</style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">H</span><div>Holmes<span class="brand-sub">执行轨迹 / TRACE EXPLORER</span></div></div>
+    <label class="eyebrow" for="run-select">运行记录</label>
+    <select id="run-select" aria-label="选择运行记录"></select>
+    <div id="run-date" class="muted run-date"></div>
+    <label class="search-box"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="搜索回复、命令、结果…" aria-label="搜索轮次"></label>
+    <div class="nav-heading"><span class="eyebrow">执行轮次</span><span id="round-count" class="muted"></span></div>
+    <nav id="round-nav" aria-label="执行轮次"></nav>
+    <div class="sidebar-footer"><span class="local-dot"></span><span id="mode-label">本地记录 · 只读查看</span></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><span class="breadcrumb">工作台</span><span class="separator">/</span><strong>执行轨迹</strong></div><div class="toolbar"><label id="auto-label"><input id="auto-refresh" type="checkbox"> 自动刷新</label><button id="refresh" class="quiet">刷新记录</button><a id="export" class="quiet" download="holmes-trace.html">导出 HTML ↗</a></div></header>
+    <div id="notice" role="status" hidden></div>
+    <div class="workspace">
+      <section id="overview"></section>
+      <div class="content-heading"><div><span class="eyebrow">沿着证据，读懂每一步</span><h2 id="round-title">正在读取记录…</h2></div><div class="step-buttons"><button id="previous" aria-label="上一轮" disabled>← 上一轮</button><button id="next" aria-label="下一轮" disabled>下一轮 →</button></div></div>
+      <div class="tabbar" role="tablist" aria-label="轮次详情"><button role="tab" data-tab="flow" aria-selected="true">执行过程</button><button role="tab" data-tab="context" aria-selected="false">输入上下文</button><button role="tab" data-tab="raw" aria-selected="false">原始事件</button><button role="tab" data-tab="run" aria-selected="false">运行概览</button></div>
+      <section id="detail" role="tabpanel" aria-label="轮次详情"></section>
+      <footer class="page-footer">显示日志实际记录的内容。未返回的 reasoning 不会补写；进程正常结束不代表答案一定正确。</footer>
+    </div>
+  </main>
+  <script id="trace-data" type="application/json">TRACE_DATA_PLACEHOLDER</script>
+  <script>/* VIEWER_JS */</script>
+</body>
+</html>

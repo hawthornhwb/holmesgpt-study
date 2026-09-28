@@ -190,6 +190,7 @@ def _investigate_issue(
 
 
 # TODO: add streaming output
+# 执行 ask 命令后路由到这个位置。
 @app.command()
 def ask(
     prompt: Optional[str] = typer.Argument(
@@ -366,11 +367,12 @@ def ask(
             model=model,
             tool_results_dir=tool_results_dir,
             on_event=on_event,
-        )
+        ) # 模型调用 → 工具执行 → 再次模型调用 的 loop
 
         if init_renderer is not None:
             init_renderer.stop()
 
+        # 交互分支
         if interactive:
             run_interactive_loop(
                 ai,
@@ -395,7 +397,7 @@ def ask(
                 console.print(
                     f"[bold yellow]Adding file {file_path} to context[/bold yellow]"
                 )
-
+        # 非交互分支
         messages = build_initial_ask_messages(
             prompt,  # type: ignore
             include_file,
@@ -403,13 +405,13 @@ def ask(
             config.get_skill_catalog(),
             system_prompt_additions,
             prompt_component_overrides=prompt_component_overrides,
-        )
+        ) # 构造 System prompt 和 user Prompt
 
         with tracer.start_trace(
             f'holmes ask "{prompt}"', span_type=SpanType.TASK
         ) as trace_span:
             trace_span.log(input=prompt, metadata={"type": "user_question"})
-            response = ai.call(messages, trace_span=trace_span, request_context=_CLI_REQUEST_CONTEXT)
+            response = ai.call(messages, trace_span=trace_span, request_context=_CLI_REQUEST_CONTEXT) # Agent loop 的执行入口。
             trace_span.log(
                 output=response.result,
             )
@@ -1080,11 +1082,11 @@ def config_toolset(
 def version() -> None:
     typer.echo(get_version())
 
-
+# 整个Agent的执行入口
 def run():
     # Default to "ask" command when no subcommand is given
     if len(sys.argv) == 1:
-        sys.argv.insert(1, "ask")
+        sys.argv.insert(1, "ask") # 如果只输入 `holmes`，代码会自动补成 `holmes ask`
     app()
 
 

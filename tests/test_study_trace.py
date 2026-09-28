@@ -101,6 +101,7 @@ def test_real_loop_records_parallel_calls_requests_reasoning_and_approval(tmp_pa
     assert "Loop 1" in walkthrough and "Loop 2" in walkthrough
     assert "provider supplied text" in walkthrough
     assert "Checking evidence" in walkthrough
+    assert (recorder.directory / "trace.html").is_file()
 
 
 def test_redaction_thread_safety_and_no_overwrite(tmp_path, monkeypatch):

@@ -28,6 +28,7 @@ from holmes.core.llm import DefaultLLM
 from holmes.core.tool_calling_llm import ToolCallingLLM
 from holmes.core.tools import Tool
 from holmes.utils.stream import StreamEvents
+from study.trace_viewer import export_run
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -171,6 +172,7 @@ class Recorder:
         self.report.close()
         self.events.close()
         self._write_walkthrough()
+        export_run(self.directory)
 
     def _write_walkthrough(self):
         """Render a short reading route from the already-redacted event journal."""
@@ -390,7 +392,8 @@ def main() -> int:
     finally:
         recorder.emit("run.end", source, {"exit_code": exit_code})
         recorder.close()
-    print(f"\n先读：{recorder.directory / 'walkthrough.md'}")
+    print(f"\n浏览器查看：{recorder.directory / 'trace.html'}")
+    print(f"按轮次导读：{recorder.directory / 'walkthrough.md'}")
     print(f"完整时间线：{recorder.directory / 'trace.md'}")
     print(f"结构化事件：{recorder.directory / 'events.jsonl'}")
     return exit_code

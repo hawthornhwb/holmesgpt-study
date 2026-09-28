@@ -11,5 +11,6 @@
 
 ## 目录
 
+- [Python 零基础源码阅读讲义](python-basics/README.md)：从基本语法学到配置模型、工具继承与 Agent 事件流，配有离线练习及答案，建议在 Day 1 源码链路前阅读。
 - [Day 1](day1/README.md)：理解 Agent 工具循环，接入 DeepSeek V4.1 Flash，并沿源码追踪完整调用链。
 - [Day 1 本地 Trace 实验](day1/trace-guide.md)：按轮次观察真实模型响应、工具结果和源码执行位置。

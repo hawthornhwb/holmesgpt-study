@@ -165,7 +165,8 @@ config = Config.load_from_file(
 ```text
 配置文件
   <- 被非空 CLI 参数覆盖
-  <- 缺失时再使用 MODEL 等环境变量兜底
+  <- CLI参数为空，使用配置文件覆盖
+  <- 配置文件缺失时再使用 MODEL 等环境变量兜底
 ```
 
 本次 `--model="deepseek/deepseek-flash"` 是 CLI 参数，因此它直接覆盖其他模型来源。
@@ -228,20 +229,38 @@ tool_executor.get_all_tools_openai_format(...)
 
 ```json
 {
-  "type": "function",
-  "function": {
-    "name": "bash",
+  "type": "function", 
+  "function": {      
+    "name": "bash",  // 函数名：模型调用时使用这个名字
+    // 工具描述：帮助模型判断何时应该调用它
     "description": "Executes a bash command and returns its output...",
-    "parameters": {
-      "type": "object",
-      "properties": {
+    "parameters": {     // 使用 JSON Schema 定义函数接受的参数
+      "type": "object", // 参数整体必须是一个对象
+      "properties": {  // 列出参数名称及各自的规则
+        // command 参数必须是字符串，用于存放要执行的命令
         "command": {"type": "string"},
+        // suggested_prefixes 参数必须是数组
+        // 从名称看可能用于建议命令前缀，但具体用途由工具实现决定
         "suggested_prefixes": {"type": "array"},
+        // timeout 参数必须是整数
+        // 一般表示超时时间，但这里没有说明单位
         "timeout": {"type": "integer"}
       },
+      // 必须提供 command 和 suggested_prefixes
+      // timeout 没列在这里，所以可以省略
       "required": ["command", "suggested_prefixes"]
     }
   }
+}
+```
+
+例子：
+
+```
+{
+  "command": "ls -la",
+  "suggested_prefixes": ["ls"],
+  "timeout": 10
 }
 ```
 
@@ -262,7 +281,7 @@ messages = [
 
 其中：
 
-- system prompt 来自 `generic_ask.jinja2`，包含通用行为、工具集说明、权限错误处理和风格要求等。
+- system prompt 来自 `generic_ask.jinja2`，包含通用行为、工具集说明、权限错误处理和风格要求等。放在[holmes/plugins/prompts/generic_ask.jinja2](/Users/weibo/Project/holmesgpt/holmes/plugins/prompts/generic_ask.jinja2) 这个目录下。
 - user prompt 包含我们输入的问题，还可能附加文件内容、技能说明和任务提醒。
 - 工具 Schema 不放在 `messages` 文本中，而是作为 `tools=` 参数单独传给模型 API。
 

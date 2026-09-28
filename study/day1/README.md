@@ -197,5 +197,3 @@ poetry run pytest \
 - 当前这份 [`README.md`](README.md) 是面向学习的讲义，应该先读。
 - [`source-walkthrough.md`](source-walkthrough.md) 是结合源码的完整调用链讲解，适合在 IDE 中对照阅读。
 - [`baseline.md`](baseline.md) 是机器运行的审计记录，用于核对完整输入、工具输出和最终答案，不需要逐行学习。
-
-API Key 没有写入任何学习记录或产出文档。

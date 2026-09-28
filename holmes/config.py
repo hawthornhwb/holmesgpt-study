@@ -724,11 +724,11 @@ class Config(RobustaBaseConfig):
             on_event=on_event,
         )
         return ToolCallingLLM(
-            tool_executor,
+            tool_executor, # 保存可用的工具
             self.max_steps,
             llm,
             tool_results_dir=tool_results_dir,
-        )
+        ) # ToolCallingLLM 是控制 模型调用 → 工具执行 → 再次模型调用 的 loop
 
     def validate_jira_config(self):
         if self.jira_url is None:

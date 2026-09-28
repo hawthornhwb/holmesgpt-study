@@ -630,12 +630,12 @@ class ToolCallingLLM:
         """Synchronous wrapper around call_stream(). Drains the generator
         and reconstructs an LLMResult."""
 
-        all_tool_calls: list[dict] = []
-        tool_decisions: Optional[List[ToolApprovalDecision]] = None
-        total_num_llm_calls = 0
-        accumulated_stats = RequestStats()
+        all_tool_calls: list[dict] = [] # 记录所有的工具的调用结果
+        tool_decisions: Optional[List[ToolApprovalDecision]] = None # 工具调用的审批决定
+        total_num_llm_calls = 0 # 模型调用的次数
+        accumulated_stats = RequestStats() # token , 成本统计
 
-        while True:
+        while True: # 真正执行 Agent loop 的地方。
             stream = self.call_stream(
                 msgs=messages,
                 response_format=response_format,
@@ -914,7 +914,7 @@ class ToolCallingLLM:
         previous_tool_calls: list[dict],
         trace_span=None,
         tool_number=None,
-        user_approved: bool = False,
+        user_approved: bool = False, # 是否是用户批准的重复调用
         session_approved_prefixes_by_agent: Optional[Dict[str, List[str]]] = None,
         request_context: Optional[Dict[str, Any]] = None,
         enable_tool_approval: bool = False,
@@ -960,7 +960,7 @@ class ToolCallingLLM:
             tool = self.tool_executor.get_tool_by_name(tool_name, user_id=user_id)
 
             tool_response = None
-            if not user_approved:
+            if not user_approved: # 检查是否重复调用
                 tool_response = prevent_overly_repeated_tool_call(
                     tool_name=tool_name,
                     tool_params=tool_params,
@@ -975,6 +975,7 @@ class ToolCallingLLM:
             )
 
             if not tool_response:
+                # 调用工具，拿到调用结果。
                 tool_response = self._directly_invoke_tool_call(
                     tool_name=tool_name,
                     tool_params=tool_params,
@@ -986,6 +987,7 @@ class ToolCallingLLM:
                 )
 
             toolset_name = self.tool_executor.get_toolset_name(tool_name, user_id=user_id)
+            # 封装调用结果
             tool_call_result = ToolCallResult(
                 tool_call_id=tool_id,
                 tool_name=tool_name,
@@ -1161,14 +1163,14 @@ class ToolCallingLLM:
             tools = None if i == max_steps else tools
             tool_choice = "auto" if tools else None
 
-            compaction_start_event = check_compaction_needed(self.llm, messages, tools)
+            compaction_start_event = check_compaction_needed(self.llm, messages, tools) # 检查是否需要压缩上下文
             if compaction_start_event:
                 yield compaction_start_event
 
             try:
                 limit_result = compact_if_necessary(
                     llm=self.llm, messages=messages, tools=tools
-                )
+                )  # 实际检查并执行压缩
             except CompactionInsufficientError as e:
                 yield from e.events
                 if e.compaction_usage and e.compaction_usage.total_tokens > 0:
@@ -1198,7 +1200,7 @@ class ToolCallingLLM:
                     f"Compaction cost (streaming): ${compaction.total_cost:.6f} | "
                     f"Tokens: {compaction.prompt_tokens} prompt + {compaction.completion_tokens} completion = {compaction.total_tokens} total"
                 )
-
+            # 压缩后是否重置要调用的工具。
             if (
                 limit_result.conversation_history_compacted
                 and RESET_REPEATED_TOOL_CALL_CHECK_AFTER_COMPACTION
@@ -1210,10 +1212,11 @@ class ToolCallingLLM:
             # Create a child gen_ai.chat span for each LLM call iteration.
             # The span is activated in context so httpx calls during completion()
             # (e.g. LiteLLM HTTP calls) become children of this gen_ai.chat span.
+            # 调用一次模型，并记录这次调用的追踪信息、耗时和费用。
             with trace_span.start_span(name="gen_ai.chat") as llm_span:
               try:
                 _llm_call_start = time.time()
-                full_response = self.llm.completion(
+                full_response = self.llm.completion( # 这里在调用模型
                     messages=parse_messages_tags(messages),  # type: ignore
                     tools=tools,
                     tool_choice=tool_choice,
