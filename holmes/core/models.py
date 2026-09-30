@@ -38,6 +38,9 @@ class ToolCallResult(BaseModel):
                 "name": self.tool_name,
                 "content": content,
             }
+        # 将工具调用结果转换成发给模型的消息字典。
+        # role 标识工具回复，tool_call_id 对应 assistant 请求中的调用 ID，name 表示工具名。
+        # content 承载格式化后的结果，不只是原始 data。
         return {
             "tool_call_id": self.tool_call_id,
             "role": "tool",

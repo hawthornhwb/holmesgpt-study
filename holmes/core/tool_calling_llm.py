@@ -805,7 +805,7 @@ class ToolCallingLLM:
             )
 
         user_id = (request_context or {}).get("user_id")
-        tool = self.tool_executor.get_tool_by_name(tool_name, user_id=user_id)
+        tool = self.tool_executor.get_tool_by_name(tool_name, user_id=user_id) # 通过 get_tool_by_name函数按照工具名称找到工具
         if not tool:
             logging.warning(
                 f"Skipping tool execution for {tool_name}: args: {tool_params}"
@@ -827,7 +827,7 @@ class ToolCallingLLM:
                 session_approved_prefixes=session_approved_prefixes or [],
                 request_context=request_context,
             )
-            tool_response = tool.invoke(tool_params, context=invoke_context)
+            tool_response = tool.invoke(tool_params, context=invoke_context) # 检查完工具，在此处调用工具.
 
             # Store OAuth tools discovered by a _connect placeholder
             if tool_response.oauth_tools:
@@ -950,6 +950,7 @@ class ToolCallingLLM:
 
             tool_params = {}
             try:
+                # 将 JSON 参数字符串反序列化为 Python 对象；正常的工具参数是字典。
                 tool_params = json.loads(tool_arguments)
             except Exception:
                 logging.warning(
@@ -987,7 +988,7 @@ class ToolCallingLLM:
                 )
 
             toolset_name = self.tool_executor.get_toolset_name(tool_name, user_id=user_id)
-            # 封装调用结果
+            # 将调用 ID 和执行结果封装到 ToolCallResult，保留请求与结果的对应关系。
             tool_call_result = ToolCallResult(
                 tool_call_id=tool_id,
                 tool_name=tool_name,
@@ -1153,6 +1154,7 @@ class ToolCallingLLM:
             raise ValueError("iteration_offset must be non-negative")
         i = iteration_offset
 
+        # 多轮模型请求在此循环中进行；工具结果追加到 messages 后供下一轮使用。
         while i < max_steps:
             if cancel_event and cancel_event.is_set():
                 raise LLMInterruptedError()
@@ -1216,7 +1218,9 @@ class ToolCallingLLM:
             with trace_span.start_span(name="gen_ai.chat") as llm_span:
               try:
                 _llm_call_start = time.time()
-                full_response = self.llm.completion( # 这里在调用模型
+                # 将当前历史经标签处理后传给模型，其中包含此前追加的工具结果。
+                # 若本轮触发了上方的上下文压缩，messages 则是压缩后的历史。
+                full_response = self.llm.completion(
                     messages=parse_messages_tags(messages),  # type: ignore
                     tools=tools,
                     tool_choice=tool_choice,
@@ -1309,6 +1313,7 @@ class ToolCallingLLM:
 
             response_message = full_response.choices[0].message  # type: ignore
 
+            # 追加 assistant 消息，其中可能包含文本和工具调用请求，并不一定是最终答案。
             messages.append(
                 response_message.model_dump(
                     exclude_defaults=True, exclude_unset=True, exclude_none=True
@@ -1318,7 +1323,7 @@ class ToolCallingLLM:
             yield self._emit_token_count(
                 messages, tools, full_response, limit_result, metadata, stats
             )
-
+            # 检查本轮 assistant 消息是否包含 tool_calls；为空时发送结束事件并返回。
             tools_to_call = getattr(response_message, "tool_calls", None)
             if not tools_to_call:
                 # Capture the final iteration's finish_reason for usage tracking
@@ -1368,11 +1373,13 @@ class ToolCallingLLM:
 
             session_prefixes_by_agent = extract_bash_session_prefixes_by_agent(messages)
 
+            # 创建最多使用 16 个工作线程的线程池，并不一定启动 16 个线程。
             with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
                 futures = []
                 for tool_index, t in enumerate(tools_to_call, 1):  # type: ignore
                     tool_number = tool_number_offset + tool_index
 
+                    # 提交一次工具调用任务。
                     future = executor.submit(
                         self._invoke_llm_tool_call,
                         tool_to_call=t,  # type: ignore
@@ -1481,6 +1488,8 @@ class ToolCallingLLM:
                     else:
                         tool_calls.append(tool_result_dict)
                         all_tool_calls.append(tool_result_dict)
+                        # 将普通工具结果（包括成功和错误）转换成 tool 消息，追加到历史。
+                        # 审批不可用时的拒绝结果，在上方审批分支中转为 ERROR 并追加。
                         messages.append(tool_call_result.to_llm_message())
 
                         yield StreamMessage(

@@ -225,8 +225,8 @@ class TestMultiIterationHappyPath:
     @patch(LIMIT_PATCH, side_effect=_make_context_limiter_passthrough)
     def test_call_happy_path(self, _mock_limit, make_ai, mock_llm):
         tc = _make_mock_tool_call()
-        resp_with_tool = _make_llm_response(content="Let me check", tool_calls=[tc])
-        resp_final = _make_llm_response(content="All pods are running", tool_calls=None)
+        resp_with_tool = _make_llm_response(content="Let me check", tool_calls=[tc])      # mock第一次模型调用
+        resp_final = _make_llm_response(content="All pods are running", tool_calls=None)  # mock第二次模型调用
         mock_llm.completion.side_effect = [resp_with_tool, resp_final]
 
         ai = make_ai()
@@ -962,6 +962,12 @@ class TestMessageStructure:
 
         # Final assistant message should have content
         assert result.messages[3]["content"] == "All good"
+
+        # 工具回复的 `tool_call_id` 必须等于上一条 assistant 请求中对应工具调用的 `id`
+        assert result.messages[1]["tool_calls"][0]["id"] == result.messages[2]["tool_call_id"]
+
+        # 工具回复的 `content` 必须包含测试工具返回的 `pod1 Running`
+        assert "pod1 Running" in result.messages[2]["content"]
 
     @patch(LIMIT_PATCH, side_effect=_make_context_limiter_passthrough)
     def test_stream_answer_end_contains_messages(self, _mock_limit, make_ai, mock_llm):

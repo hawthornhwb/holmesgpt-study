@@ -134,7 +134,7 @@ print("在判断外面")
 
 - `# 后面的文字` 是注释，不参与执行。
 - 函数或类开头的三引号字符串通常是**文档字符串**，用于说明用途。
-- 括号 `()`、方括号 `[]`、花括号 `{}` 中的表达式可以换行，仍然是一条语句。
+- **括号 `()`、方括号 `[]`、花括号 `{}` 中的表达式可以换行，仍然是一条语句。**
 - 尾部多一个逗号很常见，便于后续增删项目。
 - 名字区分大小写：`Config` 与 `config` 是不同名字。
 
@@ -188,9 +188,9 @@ print(message)
 
 | 写法 | 含义 |
 | --- | --- |
-| `f"{elapsed:.2f}"` | 小数保留两位，例如 `1.20` |
+| `f"{elapsed:.2f}"` | 小数保留两位，例如 `1.20`  **注：**这里  `elapsed` 填写具体的数字，下面一样的意思 |
 | `f"{count:,}"` | 加千位分隔符，例如 `12,345` |
-| `f"{value!r}"` | 使用适合调试的表示，便于看出引号与转义符 |
+| `f"{value!r}"` | 使用适合调试的表示，便于看出引号与转义符 **注：**把变量原本的样子表示出来 |
 | `"第一行\n第二行"` | `\n` 是换行符 |
 | `r"\d+"` | 原始字符串，常用于正则表达式，保留反斜杠含义 |
 
@@ -200,19 +200,19 @@ print(message)
 
 ```python
 name = "  holmes  "
-print(name.strip())            # holmes
-print("ERROR".lower())         # error
-print("a,b,c".split(","))      # ['a', 'b', 'c']
-print(", ".join(["a", "b"]))  # a, b
-print("log.txt".endswith(".txt"))  # True
-print("builtin://ask".startswith("builtin://"))  # True
+print(name.strip())            # holmes   		         	删除字符串多余空格
+print("ERROR".lower())         # error  							 	大写转换为小写 
+print("a,b,c".split(","))      # ['a', 'b', 'c']			 	用','来分割字符串
+print(", ".join(["a", "b"]))  # a, b									 	给两个字符串直接添加', '
+print("log.txt".endswith(".txt"))  # True 						 	后缀匹配
+print("builtin://ask".startswith("builtin://"))  # True	前缀匹配
 ```
 
-字符串不可原地修改，`strip()` 等方法返回新字符串。单独执行 `name.strip()` 不会改变变量 `name` 指向的原字符串。
+**字符串不可原地修改**，`strip()` 等方法返回新字符串。**单独执行 `name.strip()` 不会改变变量 `name` 指向的原字符串。**
 
 ### 2.3 常见运算符
 
-`+` 加法或连接，`-` 减法，`*` 乘法，`/` 除法，`//` 向下取整除法，`%` 取余，`**` 乘方。`+=` 常用来更新计数，例如 `i += 1`。注意：后面还会看到 `**config`，其中 `**` 是解包，含义由出现的位置决定。
+`+` 加法或连接，`-` 减法，`*` 乘法，`/` 除法，**`//` 向下取整除法**，`%` 取余，`**` 乘方。`+=` 常用来更新计数，例如 `i += 1`。注意：后面还会看到 `**config`，其中 `**` 是解包，含义由出现的位置决定。
 
 比较运算有 `==`、`!=`、`<`、`<=`、`>`、`>=`；结果通常是 `True` 或 `False`。
 
@@ -230,6 +230,9 @@ messages.append("assistant")
 print(messages[0])   # system
 print(messages[-1])  # assistant
 print(len(messages))  # 3
+# 下方补充一个 extend 的使用例子
+a = [1, 2, 3]
+a.extend([4, 5])    # [1, 2, 3, 4, 5]      → 把里面的元素"拆开"逐个加入
 ```
 
 下标从 `0` 开始，`-1` 表示最后一个元素。`append` 增加一个元素；`extend` 把另一组元素逐个加入。
@@ -241,21 +244,23 @@ print(numbers[:2])   # [10, 20]
 print(numbers[2:])   # [30, 40]
 ```
 
-切片 `[起点:终点]` 包含起点、不包含终点。越界取单个元素会抛 `IndexError`，切片的边界则可以超出范围。
+切片 `[起点:终点]` **包含起点、不包含终点**。越界取单个元素会抛 `IndexError`，切片的边界则可以超出范围。
 
-容易踩坑：`append()` 原地修改列表，返回 `None`。不要写 `messages = messages.append("tool")`，否则 `messages` 最后会变成 `None`。
+容易踩坑：**`append()` 原地修改列表，返回 `None`**。不要写 `messages = messages.append("tool")`，否则 `messages` 最后会变成 `None`。
 
 ### 3.2 字典 dict：按名字放字段
 
+从下面的case可以看出来字典 按 `key` 获取 `value` 的手段可以认为**有两种**。分别是 `message[]` 和 `get()` 方法
+
 ```python
 message = {"role": "user", "content": "查看服务状态"}
-print(message["role"])              # user
+print(message["role"])              # user  
 print(message.get("tool_calls"))     # None
 print(message.get("tool_calls", [])) # []
 message["content"] = "查看最近的日志"
 ```
 
-字典的每一项是“键: 值”。`message["role"]` 用键取值；键不存在时抛 `KeyError`。`.get()` 可以提供缺少键时的默认值。
+字典的每一项是“键: 值”。`message["role"]` 用键取值；**键不存在时抛 `KeyError`**。`.get()` 可以提供缺少键时的默认值。
 
 **默认值只在键不存在时生效：**
 
@@ -307,7 +312,7 @@ print(reason)   # 连接正常
 
 `return True, "连接正常"` 返回的是一个含两个元素的元组，不是两次返回。元组的元素位置不能修改，但其内部如果放了列表，那个列表仍可能被修改。
 
-`data, _ = result` 中的 `_` 仍然是普通变量，只是约定表示“这个值暂时不用”。单元素元组写成 `(value,)`，逗号不能省略。
+`data, _ = result` 中的 `_` 仍然是普通变量，只是约定表示“这个值暂时不用”。**单元素元组写成 `(value,)`**，逗号不能省略。
 
 ### 3.5 集合 set：去重和判断成员
 
@@ -317,7 +322,7 @@ print(len(names))          # 2
 print("logs" in names)     # True
 ```
 
-集合不提供列表那样的位置下标，不要依赖它的输出顺序。空集合写 `set()`，因为 `{}` 是空字典。`frozenset` 是不能增删元素的集合，项目会用它构造可比较的工具签名。
+集合不提供列表那样的位置下标，不要依赖它的输出顺序。**空集合写 `set()`**，因为 `{}` 是空字典。`frozenset` 是不能增删元素的集合，项目会用它构造可比较的工具签名。
 
 ### 3.6 必须掌握：赋值不是复制
 
@@ -357,7 +362,7 @@ else:
 
 `elif` 是“否则，如果”。一次判断链只执行第一个成立的分支。
 
-在条件里，以下常见值被当作假：`None`、`False`、数字 `0`、`""`、`[]`、`{}`、`set()`。非空字符串通常为真，因此 `bool("false")` 和 `bool("0")` 都是 `True`。
+在条件里，**以下常见值被当作假：`None`、`False`、数字 `0`、`""`、`[]`、`{}`、`set()`**。非空字符串通常为真，因此 `bool("false")` 和 `bool("0")` 都是 `True`。
 
 ```python
 if messages:
@@ -372,6 +377,12 @@ if model is not None:
 `==` 比较值是否相等，`is` 比较是不是同一个对象。判断 `None` 用 `is None`；比较工具名等字符串的内容用 `==`。
 
 ### 4.2 and、or、not 与短路
+
+Python里的 `and` 和 `or` 的含义和别的语言不太一样：
+
+- `or` 找**第一个真值**，找不到就返回最后一个值。
+
+- `and` 找**第一个假值**，找不到就返回最后一个值。
 
 ```python
 if config is not None and config.get("enabled"):
@@ -416,7 +427,7 @@ while step < 3:
 | `return value` | 结束当前整个函数，并交回结果 |
 | `pass` | 不做任何操作，不会退出循环或函数 |
 
-`while True` 没有条件上的上限，要进一步找 `break`、`return` 或异常。循环有时带 `else`：它在循环正常结束、没有经由 `break` 退出时执行，阅读时不要把它误认成附近 `if` 的分支。
+`while True` 没有条件上的上限，要进一步找 `break`、`return` 或异常。**循环有时带 `else`：它在循环正常结束、没有经由 `break` 退出时执行**，阅读时不要把它误认成附近 `if` 的分支。
 
 ### 4.4 推导式：把常见循环写紧凑
 
@@ -453,7 +464,7 @@ label = "成功" if success else "失败"
 
 这是一个表达式，根据条件选择一个值。它与推导式末尾负责筛选元素的 `if` 不同。
 
-看到 `(item for item in items)` 时，圆括号通常构成生成器表达式，元素按需产生，见第 13 节。`any(...)` 判断是否至少有一个真值，`all(...)` 判断是否全是真值；空序列的 `any` 为假，`all` 为真。
+看到 `(item for item in items)` 时，圆括号通常构成生成器表达式，元素按需产生，见第 13 节**。`any(...)` 判断是否至少有一个真值，`all(...)` 判断是否全是真值**；空序列的 `any` 为假，`all` 为真。
 
 <a id="lesson-5"></a>
 
@@ -519,7 +530,7 @@ values = ["logs", 3]
 print(format_result(*values))
 
 options = {"name": "logs", "count": 3}
-print(format_result(**options))
+print(format_result(**options)) # **解包字典的时候，每个元素是 键=值 的结构
 ```
 
 `format_result(**options)` 相当于 `format_result(name="logs", count=3)`。调用时 `**` 展开的键须为合法的字符串关键字，并且能被被调用方接收。
