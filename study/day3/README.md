@@ -1,141 +1,133 @@
-# Day 3：定义一个工具，让 Agent 使用它
+# Day 3：讲清工具插件化与参数处理
 
-状态：已规划，待学习与实验。预计 90–120 分钟。
+状态：按 2026-10-03 的面试目标重新规划，待执行。Day 1、Day 2 按你的反馈视为已完成。
 
-Day 2 关注“工具请求和结果怎样进入下一轮”。Day 3 继续往前追：**工具从哪里来，模型如何知道它能做什么，Holmes 如何执行它。**
+今天对应简历中“智能故障诊断 Agent”的第二条：Tool / Toolset、JSON Schema、参数类型转换与有效性校验。总计划见 [未来五天面试复习](../interview-plan.md)。
 
-今天的练习是添加一个本地只读工具：根据服务名称查询负责团队。按这份文档学习，记录也填写在文末。
+**核心目标：不看源码，能讲清一个工具如何被加载、描述、选择和执行，并指出参数处理的实际边界。**
 
-## 1. 先分清四个对象（10–15 分钟）
+每天有 3–4 小时：下面六项必做合计 180 分钟，第 4 小时留给工具接入实验或补薄弱点。完成情况由你实际学习后填写。
 
-打开 [Docker 工具定义](../../holmes/plugins/toolsets/docker.yaml)，只看 `docker/core` 和 `docker_inspect`，不需要启动 Docker。
+## 1. 把简历四条变成自己的问题清单（20 分钟）
 
-| 对象 | 对照这个例子理解 |
-| --- | --- |
-| Toolset | `docker/core`：把一组相关工具放在一起，管理启用状态和前置条件 |
-| Tool | `docker_inspect`：一个具体操作，有名称、说明、参数和执行实现 |
-| Schema | 发给模型的名称、说明和参数规范；模型据此生成工具调用请求 |
-| 执行实现 | YAML 中的 `command`，或 Python Tool 子类中的 `_invoke()` |
+先用自己的话写一段 90 秒项目介绍，包含：要解决什么问题、整体调查过程、你实际做过什么、最值得展开的两个技术点。今天先写初稿，Day 7 再定稿。
 
-先预测两个问题，再在第二步核对：
+然后填写这张表。Day 1、Day 2 的已有 Trace 与测试可以直接作为证据。
 
-1. 模型收到的工具 Schema 中，是否包含 `command` 的具体命令？
-2. YAML 中的 `{{ container_or_image_id }}` 如何变成工具参数？
+| 简历条目 | 已经理解的部分 | 还要补的部分 | 自己实际完成的阅读、改动或验证 |
+| --- | --- | --- | --- |
+| Agent Loop | 工具请求、执行、回填、下一轮 | 停止条件和失败边界 | |
+| 工具插件化 | 工具调用的数据流 | 加载、注册、Schema、参数处理 | |
+| 分层上下文控制 | 历史随轮次累积 | 过滤、单结果处理、Compaction | |
+| 工具安全 | 工具由程序执行 | RBAC、参数处理、命令策略、审批 Token | |
 
-完成标准：能够说清“工具集名称”和“具体工具名称”的区别。
+讲述时分别说明“项目已有机制”和“我亲手完成的工作”。已有学习仓库基于 HolmesGPT，个人贡献可以引用源码笔记、Trace 查看与实验、补充断言等实际记录；没有完成的部分先记为待验证。
 
-## 2. 顺着加载、注册、执行阅读源码（25–30 分钟）
+## 2. 用一个已有工具追接入链路（40 分钟）
 
-只读表中的函数。先追主路径，审批、转换器和 OAuth 的细节留到后续。
+从 [docker.yaml](../../holmes/plugins/toolsets/docker.yaml) 的 `docker/core`、`docker_inspect` 开始，只读定义，不需要启动 Docker。
 
-| 顺序 | 源码位置 | 要回答的问题 |
+先区分四个东西：Toolset 管理一组工具与前置条件；Tool 表示一个操作；Schema 给模型看名称、说明和参数；执行实现是 YAML 命令或 Python `_invoke()`。
+
+先追下面这些入口，记录每一步输入什么、输出什么：
+
+| 环节 | 源码入口 | 必须回答的问题 |
 | --- | --- | --- |
-| 1 | [toolset_manager.py](../../holmes/core/toolset_manager.py) / `_load_toolsets_from_paths()`、`_load_toolsets_from_config()` | 自定义 YAML 文件如何被读取？哪些字段决定工具集名称、启用状态和类型？ |
-| 2 | [toolsets/__init__.py](../../holmes/plugins/toolsets/__init__.py) / `load_toolsets_from_config()` | 配置字典怎样变成 `YAMLToolset` 和里面的 `YAMLTool` 对象？ |
-| 3 | [tool_executor.py](../../holmes/core/tools_utils/tool_executor.py) / `ToolExecutor.__init__()`、`get_tool_by_name()` | 哪些状态的工具集会被注册？`tools_by_name` 为什么可以按工具名找到实现？ |
-| 4 | [tools.py](../../holmes/core/tools.py) / `Tool.get_openai_format()`；[openai_formatting.py](../../holmes/core/openai_formatting.py) / `format_tool_to_open_ai_standard()` | 模型到底收到哪些字段？`command` 和 `user_description` 是否在其中？ |
-| 5 | `tools.py` / `YAMLTool.__infer_parameters()`、`Tool.invoke()`、`YAMLTool._invoke()`、`__invoke_command()` | 参数怎样被推断、处理并填入命令？执行结果怎样包装为 `StructuredToolResult`？ |
+| 加载定义 | [toolset_manager.py](../../holmes/core/toolset_manager.py) / `_load_toolsets_from_paths()`、`_load_toolsets_from_config()` | 文件与配置怎样进入工具管理器？ |
+| 创建对象 | [toolsets/__init__.py](../../holmes/plugins/toolsets/__init__.py) / `load_toolsets_from_config()` | 哪一步校验工具定义并创建 Toolset / Tool？ |
+| 注册与查找 | [tool_executor.py](../../holmes/core/tools_utils/tool_executor.py) / `__init__()`、`get_tool_by_name()` | `enabled` 配置与运行状态 `status` 有什么区别？名字怎样找到实现？ |
+| 生成 Schema | [tools.py](../../holmes/core/tools.py) / `get_openai_format()`；[openai_formatting.py](../../holmes/core/openai_formatting.py) | 模型看到哪些字段？ |
+| 执行操作 | `tools.py` / `invoke()`、`YAMLTool._invoke()` | 通用处理与具体实现为什么分开？ |
 
-把链路写成一行，再接上 Day 2 已经理解的后半段：
+合上文件，画出：
 
 ```text
-YAML → Toolset / Tool 对象 → 按名称注册 + 生成 Schema → 模型返回工具请求
-→ 找到 Tool → invoke() → _invoke() → StructuredToolResult → 下一轮 tool 消息
+工具定义 → Toolset / Tool 对象 → 注册与 Schema
+→ 模型返回工具名和参数 → 按名称查找 → invoke() → _invoke()
+→ StructuredToolResult → Day 2 已掌握的消息回填
 ```
 
-重点理解：`description` 给模型看；`user_description` 用于展示执行说明。`invoke()` 负责通用处理，`_invoke()` 负责具体操作。YAML 模板可以推断未声明的参数；本次练习仍显式填写参数说明、类型和是否必填。
+必须得出两个结论：Schema 不包含 YAML 的具体 `command` 与 `user_description`；程序实际执行什么由工具实现决定。模型在已提供的工具中选择操作，不负责执行本地函数。
 
-## 3. 亲手添加一个本地查询工具（25–30 分钟）
+## 3. 拆开“参数转换”和“有效性校验”（40 分钟）
 
-在 `study/day3/` 中自己创建两个文件：
+阅读 [json_schema_coerce.py](../../holmes/core/json_schema_coerce.py) 的 `coerce_params()`、`_coerce_single_value()`，接上 `Tool._coerce_params()` 与 `Tool.invoke()`。
 
-- `services.txt`：练习数据，只写 3 行，每行格式为 `服务名称 owner=团队名称`。
-- `toolsets.yaml`：定义一个名为 `study/service-owners` 的工具集，其中只有一个工具 `study_lookup_service_owner`。
+先预测再核对这四种输入。这里讨论默认 `strict=False` 的转换行为：
 
-服务名使用 `checkout-api`、`orders-api`、`reports-api`。团队名由你自己随意取，作为练习数据；后面的模型问题中不要直接给出团队名。
+| 声明类型 | 模型实参 | 当前行为 | 要解释的原因 |
+| --- | --- | --- | --- |
+| integer | `"42"` | 转为 `42` | 可以保守修正类型 |
+| integer | `"3.7"` | 保留字符串 | 不静默截断小数 |
+| array | `'["cpu", "memory"]'` | 解析成列表 | 识别字符串中的 JSON 数组 |
+| 未声明的字段 | 额外参数 | 保留原值 | 转换不是完整 Schema 校验 |
 
-工具要求如下：
+再读 [Prometheus 工具](../../holmes/plugins/toolsets/prometheus/prometheus.py) 的 `GetLabelValues._invoke()`，找到它对 `label` 非空的检查，作为具体业务校验的例子。
 
-| 字段 | 要实现的行为 |
-| --- | --- |
-| 工具集 `enabled` | 设置为 `true` |
-| 工具集 `tags` | 使用 `cli` |
-| 工具 `description` | 说明它根据服务名称查询本地服务负责团队 |
-| `parameters.service` | `type: string`、`required: true`，补充清楚的参数说明 |
-| `command` | 用 `grep -F -w -- {{ service }}` 查询固定的 `services.txt` 文件 |
-| `user_description` | 简短展示正在查询哪个服务 |
+把简历中的表述拆成四层：
 
-文件路径使用 `/Users/weibo/Project/holmesgpt/study/day3/services.txt`，避免工作目录不同导致找不到文件。查询范围就是这份 3 行的小文件。
+1. Pydantic 校验 Tool / Toolset 等**定义对象**。
+2. JSON Schema 向模型描述生成参数时的类型和约束；strict 能否启用取决于配置与工具兼容性。
+3. 执行前做**顶层、保守的类型转换**。
+4. 具体工具继续检查业务参数，并返回可用于下一轮纠正的错误。
 
-先在终端直接执行同样的查询，确认能返回你填写的 `checkout-api` 那一行，再写 YAML。模板参数沿用源码中的处理方式，不需要自己给 `{{ service }}` 再套一层引号。
+当前通用执行路径没有统一完成全部 JSON Schema 运行时校验：缺失字段会跳过，未知字段保留，`enum`、数值范围和嵌套结构没有在这一步统一检查。`json.loads()` 成功也只证明 JSON 能解析。
 
-完成标准：你能解释 YAML 每个字段的用途，并知道实际执行的是哪条命令。
+面试表达可以是：“Schema 约束模型生成，执行前做保守类型转换，业务合法性由具体工具继续检查；统一的完整运行时校验是可以补强的地方。”
 
-## 4. 先离线验证工具，再接模型（20–25 分钟）
+## 4. 用已有离线测试核对理解（30 分钟）
 
-自己创建 `tests/core/test_day3_toolset.py`，写 3 个测试：
-
-| 测试 | 检查什么 |
-| --- | --- |
-| 加载、注册和 Schema | 从 YAML 加载工具集，执行前置条件检查，再创建 `ToolExecutor`；能按名称找到工具，Schema 包含 `service` 参数并将它标为必填 |
-| 成功查询 | 调用 `tool.invoke({"service": "checkout-api"}, context)`；检查状态为 `SUCCESS`、返回码为 0、输出包含你填写的团队名，且不包含其他两条服务记录 |
-| 文件不存在 | 复制工具对象，把副本的 `command` 指向临时目录下一个不存在的文件；检查状态为 `ERROR`、返回码非 0，`invocation` 保留命令和路径，`data` 包含文件不存在的错误 |
-
-可复用的入口：
-
-- `holmes.plugins.toolsets.load_toolsets_from_file()`：加载你的 YAML。
-- `toolset.check_prerequisites(silent=True)`：更新工具集运行状态。`enabled: true` 是配置意图，执行器筛选的是运行状态 `status`。
-- `ToolExecutor(toolsets=[toolset])`：注册已经可用的工具。
-- `tests.conftest.create_mock_tool_invoke_context(tool_name=...)`：提供执行上下文；这里的模型是替身，不请求 API。
-- pytest 的 `tmp_path`：提供临时目录。错误测试在副本上改变路径，保留原始练习数据。
-
-在项目根目录运行：
+先阅读这些测试的输入、预期输出和断言，再在项目根目录运行。这里验证现有逻辑，不需要新增测试文件。
 
 ```bash
-poetry run pytest tests/core/test_day3_toolset.py -q --no-cov -n 0
+poetry run pytest tests/test_json_schema_coerce.py \
+  -k 'test_stringified_array or test_whole_number or test_float_string_rejected or test_param_not_in_schema_left_alone' \
+  -q --no-cov -n 0
+
+poetry run pytest tests/test_openai_formatting.py \
+  -k 'test_format_tool_strict_for_compatible_tool or test_format_tool_no_strict_for_dynamic_keys' \
+  -q --no-cov -n 0
 ```
 
-这组测试会真实执行本地查询命令，但不调用 DeepSeek。先记录预测，再运行并检查结果。
+前一组对应四种参数边界，后一组对比能使用 strict 的工具和具有动态字段的工具。记录实际结果与一个让你修正理解的断言，不必重复 Day 2 已经掌握的消息顺序实验。
 
-一个容易误解的细节：当前 `YAMLTool._get_status()` 将非零返回码判为 `ERROR`。`grep` 找不到匹配项时返回 1，因此在这条实现中也会得到 `ERROR`，不能预期它自动变成 `NO_DATA`。今天只观察这个规则。
+这些测试通过，能证明转换与 Schema 生成的程序行为；不能证明所有模型都会生成合规参数，也不能证明所有工具都完成业务有效性校验。
 
-## 5. 用一次真实请求观察模型选择（10–20 分钟）
+## 5. 脱稿回答六个问题（30 分钟）
 
-离线测试通过后，沿用当前已配置的 DeepSeek 模型，在项目根目录运行一次：
+每题控制在 1–2 分钟。先口述或录音，卡住后再查源码。
 
-```bash
-DEEPSEEK_API_KEY="$(launchctl getenv DEEPSEEK_API_KEY)" \
-  poetry run holmes ask \
-  "请使用 study_lookup_service_owner 查询 checkout-api 的负责团队，并依据工具返回结果回答。" \
-  --model deepseek/deepseek-flash \
-  --custom-toolsets study/day3/toolsets.yaml \
-  --show-tool-output --no-interactive --max-steps 6 \
-  2>&1 | tee study/day3/ask-output.log
-```
+1. 模型怎样知道有哪些工具？Schema 与实际实现是什么关系？
+2. 为什么要同时有 Toolset、Tool、`invoke()` 和 `_invoke()`？
+3. 新增一个查询工具，要定义哪些内容，怎样接入已有执行链？
+4. JSON Schema、类型转换和业务校验分别解决什么问题？
+5. 参数无法转换、参数缺失或工具查询失败，程序和模型分别会怎样处理？
+6. 你亲手验证了什么？现有测试能证明什么，不能证明什么？
 
-这一步会产生模型 API 用量。若终端找不到 Poetry，使用 `/Users/weibo/.local/bin/poetry` 替换 `poetry`。
+最后把“工具插件化”讲成一段 2 分钟回答：需求 → 抽象 → 接入链路 → 一个具体参数例子 → 失败处理 → 验证与限制。
 
-先预测：至少需要几次模型请求，才能“请求工具 → 根据结果回答”？实际可能多于预测，按本次输出记录。
+## 6. 填写记录并验收（20 分钟）
 
-验收时看三件事：是否请求了你定义的工具、是否使用正确的 `service` 参数、最终团队名是否与文件中的查询结果一致。回答内容正确但没有调用该工具，仍未达到本次练习的工具使用目标。
+- [ ] 脱稿画出工具接入到执行的链路，能找到各环节函数。
+- [ ] 解释 Toolset / Tool / Schema / 执行实现四者的区别。
+- [ ] 预测并解释四种参数输入的实际行为。
+- [ ] 指出一个具体业务校验，并解释当前统一处理的边界。
+- [ ] 实际运行上述两组测试，记录结果和证明范围。
+- [ ] 完成 90 秒项目介绍初稿和 2 分钟工具插件化口述。
+- [ ] 六个追问中至少五个能脱稿回答；剩余问题写入明天的复习清单。
 
-`ask-output.log` 是终端运行记录，适合核对工具输入、输出和最终回答；它不包含完整的每轮模型请求快照。Day 1 的 `trace_run.py` 当前未提供自定义工具集参数，且其提示限制读取 `study/`，本次按上述 CLI 命令运行即可。
+当天记录直接填在这里：
 
-## 当天验收与学习记录
+- 实际学习日期与用时：
+- 我的 90 秒项目介绍：
+- 我画出的工具接入链路：
+- 最容易混淆的参数边界与例子：
+- 两组测试的实际结果及证明范围：
+- 我实际完成的个人工作与证据：
+- 仍答不清的问题：
 
-- [ ] 能区分 Toolset、Tool、Schema 和执行实现。
-- [ ] 能指出 YAML 加载、按名称注册和 Schema 生成的位置。
-- [ ] 自己完成了查询工具，能解释参数如何进入命令。
-- [ ] 3 个离线测试通过，理解成功与错误状态如何产生。
-- [ ] 真实请求使用了新工具，答案与实际查询结果一致。
+## 第 4 小时：工具接入实验或补弱项（最多 60 分钟）
 
-当日产出是你编写的 YAML、练习数据、3 个测试、一次运行记录，以及下面的学习记录。核心练习完成后即可结束当天学习。
+如果核心任务已通过验收，从 [原工具实验](tool-lab.md) 第 3、4 节开始：自己定义查询服务负责团队的本地工具，验证加载 / Schema、成功查询、文件不存在三个场景。练习代码留给你亲手完成；本文只规划任务。
 
-- 实际学习日期：
-- 用自己的话解释 Toolset 和 Tool 的区别：
-- 模型收到的 Schema 中有哪些字段，是否包含命令：
-- 参数从模型请求到命令执行经历了哪些处理：
-- 三个测试的结果，以及各自能证明什么：
-- 真实请求用了什么工具和参数，返回了什么证据：
-- `description` 与 `user_description` 的区别：
-- 仍不理解的一处源码或现象：
+到 60 分钟就记录进度，未完成部分先保留，下一天核心主题仍按计划推进。若口述还不顺，第 4 小时优先补六个追问。真实模型请求是进一步选做，调用前确认本地工具验证已完成；记录只能按实际执行情况填写。
