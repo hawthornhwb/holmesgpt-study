@@ -1,79 +1,63 @@
-# HolmesGPT：未来五天面试复习计划
+# HolmesGPT 四个模块的面试设计学习计划
 
-2026-10-06 更新说明：本页保留为原计划参考。针对 10-04 新简历及源码阅读难度，当前先执行 [新版 Day 2](day2/README.md)，用实例和口述建立面试回答；以下源码阅读时长与“已掌握”的假设不作为当前要求。后续安排根据实际回答再调整。
+2026-10-06 更新，依据 10-04 版《黄伟博_AI应用开发_简历.docx》和你已经理解 Agent 主流程的反馈。
 
-规划日期：2026-10-03。依据《黄伟博_AI应用开发_简历.pdf》中“智能故障诊断 Agent”的四条项目描述，以及你已完成 Day 1、Day 2 的反馈。
+**目标：讲清简历中工具插件化、分层上下文控制、工具调用安全、效果评估四个模块的设计，并回答追问。** 学习围绕“为什么需要、怎么设计、如何工作、异常怎样处理、有什么取舍、怎样验证”展开。
 
-**目标：五天后能脱稿介绍项目，逐条解释简历里的技术点，用源码、测试或实际 Trace 支撑回答，并说清自己的工作与方案取舍。**
+当前先完成新版 Day 3、Day 4；每天只打开对应 README。Day 2 可用于项目概述查阅，已有 Trace 和测试记录继续作为证据使用。
 
-接下来五天记作 Day 3–Day 7，按每次学习推进，不固定为日历日期。每天 3 小时核心任务，另留最多 1 小时补薄弱点或做实验，总计约 15–20 小时。
+## 四个模块与学习顺序
 
-## 五天总表
-
-| 阶段 | 主问题 | 对应简历 | 当日产出 |
+| 阶段 | 对应简历模块 | 要解释的设计问题 | 当前安排 |
 | --- | --- | --- | --- |
-| [Day 3](day3/README.md) | 一个新工具如何接入，模型实参怎样处理？ | 工具插件化；项目介绍初稿 | 工具链路图、四种参数边界、2 分钟口述 |
-| [Day 4](day4/README.md) | 大结果和长历史怎样进入有限上下文？ | 分层上下文控制 | 三层控制与落盘对比表、关键证据保留清单 |
-| Day 5 | 模型选择操作后，程序怎样控制权限与执行？ | 工具调用安全 | 安全边界表、审批时序、2 分钟口述 |
-| Day 6 | 如何用证据完成一次调查，失败时怎么办？ | Agent Loop；完整项目案例 | 一个完整案例、异常表、效果评估方案 |
-| Day 7 | 能否应对连续追问并说明个人贡献？ | 四条串讲 | 90 秒 / 3 分钟 / 8 分钟讲述、模拟面试记录 |
+| [Day 3](day3/README.md) | 工具插件化 | 不同平台怎样通过统一工具接口接入，怎样管理和执行？ | 已调整，90 分钟核心练习 |
+| [Day 4](day4/README.md) | 分层上下文控制 | 为什么分别处理查询范围、单次结果和长历史？ | 已调整，90 分钟核心练习 |
+| Day 5 | 工具调用安全 | 权限、参数、命令策略和审批分别控制什么？ | 后续按回答情况调整，旧材料见下方 |
+| Day 6 | 效果评估 | 诊断正确性怎样验证，质量和效率怎样比较？ | 后续按回答情况调整，旧材料见下方 |
+| Day 7 | 四个模块串讲 | 能否用一个调查案例串起设计，并回答连续追问？ | 后续练习，旧材料见下方 |
 
-Day 1、Day 2 的主链路与消息流直接复用：Day 3 的简短复述并入第 1 项 20 分钟，Day 4 起每天开头用 15 分钟复习。每天优先完成“解释机制 → 核对行为 → 口述取舍”，当天代码阅读范围由下面列出的入口限定。
+Agent Loop 是你已经理解的共同背景。四个模块按最新简历分别准备，其中效果评估是第四个模块。
 
-## Day 3：工具插件化与参数处理
+## 新版 Day 3 怎样学
 
-按 [新 Day 3 文档](day3/README.md) 执行。核心任务共 180 分钟：简历映射和介绍初稿 20 分钟、接入链路 40 分钟、参数边界 40 分钟、已有测试 30 分钟、追问口述 30 分钟、记录验收 20 分钟。
+从 [Day 3 主文档](day3/README.md) 开始：
 
-第 4 小时选做 [本地工具接入实验](day3/tool-lab.md)，保留亲手接入工具的体验。先完成四种参数边界和口述，再决定是否继续实验。
+1. 10 分钟：用接入 Kubernetes、日志平台的场景解释插件化需求。
+2. 20 分钟：理解 Tool、Toolset、Schema 和执行实现的职责。
+3. 20 分钟：用日志查询工具讲清接入、调用和失败处理。
+4. 25 分钟：练习 2 分钟回答和 5 个核心追问。
+5. 15 分钟：针对卡点补解释或核对至多两段源码，修订回答。
 
-## Day 4：分层上下文控制
+完成标准：讲清需求、职责、具体例子、异常和一项取舍，有一条核对依据。参数转换边界作为深入追问保留；[工具接入实验](day3/tool-lab.md) 根据疑问选做。
 
-具体执行步骤、预算练习、测试命令与当天学习记录已展开到 [Day 4 任务文档](day4/README.md)，学习时按该文档依次完成。
+## 新版 Day 4 怎样学
 
-**当天问题：为什么查询减量、单次结果处理和历史 Compaction 要分别做？**
+从 [Day 4 主文档](day4/README.md) 开始：
 
-180 分钟安排：复习 15、源码阅读 45、对比整理 30、离线验证 50、口述 25、记录 15。
+1. 10 分钟：区分查询范围太宽、单条结果过大、历史累计过大。
+2. 20 分钟：理解查询减量、单次结果处理和历史 Compaction 的分工。
+3. 20 分钟：比较摘要与落盘，推演证据缺失和失败处理。
+4. 25 分钟：练习 2 分钟回答和 5 个核心追问。
+5. 15 分钟：针对卡点核对至多两段资料，修订回答。
 
-先读以下入口：
+完成标准：用日志场景讲清分层设计，解释摘要与落盘的取舍、证据保留和失败处理，有一条核对依据。当前仓库的 llm_summarize 默认关闭且不推荐，优先采用大结果落盘；摘要是否实际启用按配置与运行记录说明。
 
-| 环节 | 入口 | 要回答什么 |
-| --- | --- | --- |
-| 查询范围与结果过滤 | [Loki API](../holmes/plugins/toolsets/grafana/loki_api.py)；[Kubernetes YAML](../holmes/plugins/toolsets/kubernetes.yaml) 的 `kubernetes_jq_query` | 时间、对象、数量和字段在哪一侧过滤？ |
-| 单次结果 Transformer | [tools.py](../holmes/core/tools.py) 的 `_apply_transformers()`；[llm_summarize.py](../holmes/core/transformers/llm_summarize.py) | 什么时候摘要？阈值单位是什么？失败与摘要膨胀怎么办？ |
-| 当前大结果落盘 | [tool_context_window_limiter.py](../holmes/core/tools_utils/tool_context_window_limiter.py) 的 `spill_oversized_tool_result()` | 上下文保留什么？原始结果在哪？不能落盘时怎么办？ |
-| 长历史 Compaction | [input_context_window_limiter.py](../holmes/core/truncation/input_context_window_limiter.py) 的 `compact_if_necessary()`；[compaction.py](../holmes/core/truncation/compaction.py) | 在哪轮之前检查？预算是否包含工具 Schema 与输出？压缩后保留哪些消息？ |
+## 时间和学习成果
 
-先读 [项目上下文管理说明](../docs/reference/context-management.md)，再画“收窄查询 → 单次结果处理 → 加入历史 → 全历史压缩 → 下一轮请求”。
+每一天可以拆成 50 分钟理解设计、40 分钟讲述与查证。你原先提供的每天 3–4 小时是可用时间，90 分钟核心练习完成并通过口述验收即可结束，额外时间优先补具体卡点。
 
-必须核对三处实际行为：
+源码按问题查证：先说清疑问，再选一到两段相关代码，约 10 分钟仍卡住就换成中文解释或输入输出推演。测试和真实模型实验用于验证特定问题，按需要选择。
 
-- `llm_summarize` 在当前源码中已标为历史机制，默认关闭；使用摘要需要相应配置。当前大结果方案优先保留完整结果到磁盘，给模型路径、预览与读取提示。
-- `jq` 通常是客户端过滤；`kubernetes_jq_query` 的 API 分页不等于总结果数量上限。Loki 的 `query/start/end/limit` 则直接进入服务端请求。
-- 单次结果摘要与全历史 Compaction 都可能丢失信息。提示保留关键证据是设计要求，不能承诺无损。
+每个模块在当天 README 留下一页回答：问题背景、设计方案、一个具体例子、异常处理、一项取舍、一条核对依据、实际个人工作，以及仍卡住的追问。是否学会以自己能解释和回答为准。
 
-运行下面少量离线测试，先预测再检查断言：
+可以在聊天中直接说：“带我学新版 Day 3 / Day 4，每次只讲一个设计问题，再根据我的回答继续追问。”
 
-```bash
-poetry run pytest tests/core/transformers/test_llm_summarize.py \
-  -k 'test_should_apply_no_fast_model or test_should_apply_with_custom_threshold or test_transform_empty_response or test_integration_with_tools_non_expanding_logic' \
-  -q --no-cov -n 0
+## 后续阶段的旧参考材料
 
-poetry run pytest tests/core/tools_utils/test_tool_context_window_limiter.py \
-  -k 'test_within_token_limit or test_edge_case_exactly_at_limit or test_spill_to_disk_without_images' \
-  -q --no-cov -n 0
+下面保留原 Day 5–Day 7 的源码与实验索引。时间、测试与验收安排属于旧方案；后续学习时再按四个模块的面试目标调整。
 
-poetry run pytest tests/core/truncation/test_compaction.py \
-  -k 'test_compaction_output_shape_user_summary_no_trailing_system or test_compaction_returns_original_history_when_fallback_also_fails' \
-  -q --no-cov -n 0
-```
-
-这些选择使用 Mock / Fake 模型；`test_compaction.py` 还包含真模型测试，今天按上述筛选运行。
-
-产出一张对比表：处理对象、触发条件、是否额外调用模型、能否找回原文、失败处理。再写关键证据清单：资源名、命名空间、时间、错误原文、查询条件、已排除假设、下一步待办。
-
-验收：用 2 分钟回答“为什么不能只靠 Compaction”“摘要丢证据怎么办”“当前落盘与摘要方案怎么选”。节省比例与性能收益只引用自己实际测量的数据。
-
-第 4 小时：从现有 Trace 取一条工具输出，比较全文、短预览与手工摘要分别保留了哪些证据，并指出需要重新读取原文的情形。
+<details>
+<summary>需要准备 Day 5–Day 7 时再展开旧材料</summary>
 
 ## Day 5：安全边界与审批
 
@@ -187,3 +171,5 @@ poetry run pytest tests/test_tool_calling_llm.py \
 - 脱稿还答不清的问题，明天开头复习：
 
 规划文档中的命令是待执行学习任务；本次重规划只核对源码、测试选择和文档路径，不代表已经完成这些学习与实验。
+
+</details>
