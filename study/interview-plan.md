@@ -4,7 +4,7 @@
 
 **目标：讲清简历中工具插件化、分层上下文控制、工具调用安全、效果评估四个模块的设计，并回答追问。** 学习围绕“为什么需要、怎么设计、如何工作、异常怎样处理、有什么取舍、怎样验证”展开。
 
-当前先完成新版 Day 3、Day 4；每天只打开对应 README。Day 2 可用于项目概述查阅，已有 Trace 和测试记录继续作为证据使用。
+四个模块的主计划均已整理，按 Day 3 → Day 4 → Day 5 → Day 6 推进，每天只打开对应 README。Day 2 可用于项目概述查阅，已有 Trace 和测试记录继续作为证据使用。
 
 ## 四个模块与学习顺序
 
@@ -12,8 +12,8 @@
 | --- | --- | --- | --- |
 | [Day 3](day3/README.md) | 工具插件化 | 不同平台怎样通过统一工具接口接入，怎样管理和执行？ | 已调整，90 分钟核心练习 |
 | [Day 4](day4/README.md) | 分层上下文控制 | 为什么分别处理查询范围、单次结果和长历史？ | 已调整，90 分钟核心练习 |
-| Day 5 | 工具调用安全 | 权限、参数、命令策略和审批分别控制什么？ | 后续按回答情况调整，旧材料见下方 |
-| Day 6 | 效果评估 | 诊断正确性怎样验证，质量和效率怎样比较？ | 后续按回答情况调整，旧材料见下方 |
+| [Day 5](day5/README.md) | 工具调用安全 | 权限、参数、命令策略和审批分别控制什么？ | 已整理，90 分钟核心练习 |
+| [Day 6](day6/README.md) | 效果评估 | 诊断正确性怎样验证，质量和效率怎样比较？ | 已整理，90 分钟核心练习 |
 | Day 7 | 四个模块串讲 | 能否用一个调查案例串起设计，并回答连续追问？ | 后续练习，旧材料见下方 |
 
 Agent Loop 是你已经理解的共同背景。四个模块按最新简历分别准备，其中效果评估是第四个模块。
@@ -42,6 +42,30 @@ Agent Loop 是你已经理解的共同背景。四个模块按最新简历分别
 
 完成标准：用日志场景讲清分层设计，解释摘要与落盘的取舍、证据保留和失败处理，有一条核对依据。当前仓库的 llm_summarize 默认关闭且不推荐，优先采用大结果落盘；摘要是否实际启用按配置与运行记录说明。
 
+## Day 5 怎样学
+
+从 [Day 5 主文档](day5/README.md) 开始：
+
+1. 10 分钟：从排障请求识别越权、参数注入与高风险操作。
+2. 20 分钟：理解 RBAC、参数处理、命令策略、人工审批和 Approval Token 的分工。
+3. 20 分钟：推演允许、拒绝、待审批与参数篡改，说明一项取舍。
+4. 25 分钟：练习 2 分钟回答和 5 个核心追问。
+5. 15 分钟：针对卡点核对至多两段资料，修订回答。
+
+完成标准：解释控制点的职责与调用位置，讲清审批内容绑定、失败处理和作用边界，并有一条核对依据。实际权限与部署配置相关，审批不增加集群权限；Token 不替代身份认证或完整的单次使用控制。
+
+## Day 6 怎样学
+
+从 [Day 6 主文档](day6/README.md) 开始：
+
+1. 10 分钟：从已有故障场景区分现象、根因与证据。
+2. 20 分钟：理解可复现故障、预期答案、规则断言与 LLM Judge。
+3. 20 分钟：解释通过率、耗时、调用次数、Token 和费用，分析猜中与误判。
+4. 25 分钟：练习 2 分钟回答和 5 个核心追问。
+5. 15 分钟：针对卡点核对至多两段资料，修订回答。
+
+完成标准：能讲清质量与效率怎样一起评估，明确指标口径，说明一项防猜测措施与失败分析方法，并有一条核对依据。include_tool_calls 提供 Judge 输入，确定性工具调用要求需直接检查实际记录。场景阅读和纸面推演可完成核心任务，真实 eval 按需要另选。
+
 ## 时间和学习成果
 
 每一天可以拆成 50 分钟理解设计、40 分钟讲述与查证。你原先提供的每天 3–4 小时是可用时间，90 分钟核心练习完成并通过口述验收即可结束，额外时间优先补具体卡点。
@@ -50,83 +74,14 @@ Agent Loop 是你已经理解的共同背景。四个模块按最新简历分别
 
 每个模块在当天 README 留下一页回答：问题背景、设计方案、一个具体例子、异常处理、一项取舍、一条核对依据、实际个人工作，以及仍卡住的追问。是否学会以自己能解释和回答为准。
 
-可以在聊天中直接说：“带我学新版 Day 3 / Day 4，每次只讲一个设计问题，再根据我的回答继续追问。”
+可以在聊天中直接说：“带我学 Day 3 / Day 4 / Day 5 / Day 6，每次只讲一个设计问题，再根据我的回答继续追问。”
 
-## 后续阶段的旧参考材料
+## 四个模块完成后的串讲参考
 
-下面保留原 Day 5–Day 7 的源码与实验索引。时间、测试与验收安排属于旧方案；后续学习时再按四个模块的面试目标调整。
+四个模块的当前学习任务在各自 README。下面只保留原 Day 7 的综合串讲材料，后续根据四份实际回答选择练习。
 
 <details>
-<summary>需要准备 Day 5–Day 7 时再展开旧材料</summary>
-
-## Day 5：安全边界与审批
-
-**当天问题：RBAC、参数处理、命令策略与审批分别提供什么保护？**
-
-180 分钟安排：复习 15、源码阅读 45、边界与审批图 40、离线验证 40、口述 25、记录 15。
-
-| 层次 | 入口 | 必须解释的边界 |
-| --- | --- | --- |
-| Kubernetes 权限 | [RBAC 模板](../helm/holmes/templates/holmesgpt-service-account.yaml)；[Helm 配置](../helm/holmes/values.yaml) | 允许访问哪些资源与命名空间？当前默认范围是什么？ |
-| YAML 参数处理 | [tools.py](../holmes/core/tools.py) 的 `sanitize()`、`YAMLTool._build_context()` | 参数化模板与完整 Bash 命令为什么是两条处理路径？ |
-| Bash 命令策略 | [validation.py](../holmes/plugins/toolsets/bash/validation.py) 的 `validate_command()`；[bash_toolset.py](../holmes/plugins/toolsets/bash/bash_toolset.py) 的 `requires_approval()` | 如何得到允许、拒绝、需要审批三种结果？ |
-| 审批恢复 | [tool_calling_llm.py](../holmes/core/tool_calling_llm.py) 的 `_execute_tool_decisions()` | 缺少审批交互会怎样？用户决定如何关联原调用？ |
-| Approval Token | [approval_tokens.py](../holmes/utils/approval_tokens.py) 的 `mint_token()`、`verify_token()` | 调用 ID、工具名、参数摘要为何必须绑定？ |
-
-画出“模型请求操作 → 参数与策略检查 → APPROVAL_REQUIRED → 用户决定 → Token 校验 → 恢复执行”，旁边单独标注集群 RBAC 的约束位置。
-
-当前实现的口述边界：默认 Kubernetes RBAC 是集群范围读权限，收窄命名空间需要配置；项目存在可选写操作，实际权限需结合工具与配置判断；应用命令策略不等于操作系统沙箱；签名 Token 用于绑定获批内容，不等于身份认证或完整的一次性防重放机制。
-
-用下面两组现有防御测试核对审批决策与内容绑定：
-
-```bash
-poetry run pytest tests/toolsets/bash/test_bash_approval_flow.py \
-  -k 'test_approval_not_required_for_allowed_command or test_unapproved_command_returns_approval_required_status or test_denied_command_returns_error' \
-  -q --no-cov -n 0
-
-poetry run pytest tests/test_approval_tokens.py \
-  -k 'test_mint_then_verify_round_trip or test_verify_tolerates_semantically_equal_args or test_verify_rejects_all_failure_modes_uniformly' \
-  -q --no-cov -n 0
-```
-
-产出安全表：控制点、输入、允许 / 拒绝 / 待审批条件、证明范围与限制。模板或单测通过只能记录对应层的证据，真实集群权限按实际验证情况填写。
-
-验收：脱稿解释“为什么 Prompt 不能代替权限控制”“为什么参数与命令检查要分开”“审批为什么需要内容绑定”“RBAC 与应用检查如何配合”，再压缩成 2 分钟回答。
-
-第 4 小时：阅读 [命名空间 RBAC 测试](../tests/test_namespace_scoped_rbac_helm.py) 与 [YAML 参数防御测试](../tests/plugins/toolsets/test_toolset_command_injection.py) 的断言，补齐防御边界与各项检查的证明范围。
-
-## Day 6：一个完整案例、失败处理与评估
-
-**当天问题：你怎么证明 Agent 的结论来自证据，而且能处理调查失败？**
-
-180 分钟安排：复习 15、已有 Trace 重述 35、Kubernetes 案例 50、异常与测试 35、效果评估 30、记录 15。
-
-先用 [Day 1 已有 Trace](day1/trace-guide.md) 复述一条实际链路：用户问题 → 模型提出工具请求 → 工具返回证据 → 下一轮动作 → 最终结论。每个结论标一条实际证据，避免只讲设计。
-
-再基于 [09_crashpod 案例定义](../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml) 整理一个 Kubernetes 案例，今天作为**案例阅读与推演**，运行状态由实际执行记录决定：
-
-1. 用户只问某个服务为什么异常，模型需要发现资源状态、事件和日志。
-2. `CrashLoopBackOff` 是症状，不能直接当根因；日志中的 `DEPLOY_ENV` 缺失是更具体的证据。
-3. 说明还需要哪些资源配置证据来交叉核对，哪些竞争假设已经排除、哪些还没排除。
-4. 最终输出根因、依据、建议和不确定性；新增建议要说明如何验证生效。
-
-做一张异常表：工具错误、无数据、非法参数、审批拒绝、模型请求失败、上下文压缩失败、达到最大步数。每项写“下一轮能否继续、给谁反馈、怎样避免编造结论”。
-
-阅读 [call_stream()](../holmes/core/tool_calling_llm.py) 的停止判断，再运行已有测试：
-
-```bash
-poetry run pytest tests/test_tool_calling_llm.py \
-  -k 'test_call_continues_after_tool_error or test_max_steps_forces_termination or test_max_steps_exceeded_raises' \
-  -q --no-cov -n 0
-```
-
-需要说准确：模型不再请求工具时结束；最后允许轮次撤去工具；若仍异常返回工具调用，超步数保护会报错。最大步数提供调用预算，不保证在预算内一定找到根因。
-
-效果评估写成一页方案：程序逻辑测试验证协议与执行行为；端到端评估检查正确根因、证据引用、必要工具调用、误报或幻觉、请求轮次、耗时与成本。选择有可发现特征的真实证据，避免只检查通用回答；方案和实际跑出的结果分别记录。
-
-验收：用 3–5 分钟讲完整案例，再回答“证据不足怎么办”“状态异常为何不是根因”“单测通过为何不代表诊断准确”“预算用尽怎样结束”。
-
-第 4 小时：把案例改为“权限不足”或“日志为空”，重写调查分支与最终回答；也可以用 [17_oom_kill 案例](../tests/llm/fixtures/test_ask_holmes/17_oom_kill/test_case.yaml) 练习区分症状、直接终止原因和进一步待查原因。真实集群评估不作为当天核心任务。
+<summary>完成四个模块后再展开原 Day 7 参考</summary>
 
 ## Day 7：模拟面试与最终整理
 
