@@ -19,7 +19,7 @@ Day 1、Day 2 你已经掌握了工具结果怎样进入下一轮，Day 3 研究
 
 ## 1. 找到上下文增长的位置（15 分钟）
 
-打开 [Day 2 消息流记录](../day2/README.md)，或 [Day 1 已有 Trace 导读](../day1/runs/20260923-225409-379209/walkthrough.md)，选一条你已经熟悉的工具调用。
+打开 [Day 2 原消息流记录](../day2/source-lab.md)，或 [Day 1 已有 Trace 导读](../day1/runs/20260923-225409-379209/walkthrough.md)，选一条你已经熟悉的工具调用。
 
 具体做三件事：
 
