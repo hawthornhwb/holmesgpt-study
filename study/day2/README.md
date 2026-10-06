@@ -95,7 +95,7 @@ Skill 的定义参考 [Anthropic 官方说明](https://platform.claude.com/docs/
 
 ## 4 用证据讲一次排障 20 分钟
 
-下面根据仓库的 [09_crashpod 故障场景](../../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml) 改编为纸面练习。该 fixture 的服务会在缺少 `DEPLOY_ENV` 时退出；本次没有运行 Kubernetes 或模型评测。表中的证据用于练习推理，不能当作你本次实跑记录。
+下面根据仓库的 [09_crashpod 故障场景](../../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml) 改编为纸面练习。该 fixture 的服务会在缺少 `DEPLOY_ENV` 时退出；本页表格用于练习推理，不能当作当天记录。该 case 后来在本地集群实跑并连续两次通过，真实数字见 [本地环境与运行方法](../local-environment.md)。
 
 问题：“payment-processing-worker 为什么一直重启？”
 

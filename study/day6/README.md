@@ -22,7 +22,7 @@
 
 参考仓库的 [09_crashpod 场景](../../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml)：payment-processing-worker 缺少 DEPLOY_ENV 环境变量，启动脚本输出对应错误并退出，容器反复重启。用户只问这个服务有什么问题，expected_output 要求指出该变量未定义或缺失。
 
-前三天使用的仍是这一个场景，本页把同一次调查接回测试入口。本次没有启动集群或运行模型评测。
+前三天使用的仍是这一个场景，本页把同一次调查接回测试入口。2026-10-06 已实跑：修正 Judge 适配后连续两次 1/1 通过，correctness 都得 1 分，Compaction 都为空，两次分别是 18.3 秒／19 次工具调用和 10.7 秒／9 次工具调用；这个波动本身就是评估话题，实测数字与 Judge 适配见 [本地环境与运行方法](../local-environment.md)。
 
 先判断三种教学回答：
 
@@ -100,7 +100,7 @@ Judge 可能误判，规则也可能过窄。固定清楚的要求，人工复�
 
 ## 4 面试讲述与核心追问
 
-先借助骨架讲一遍，再合上文档，用自己的话讲第二遍。个人实际跑过的场景与结果填写在文末；当前没有实测数字时，讲清评估设计和核对依据。
+先借助骨架讲一遍，再合上文档，用自己的话讲第二遍。个人实际跑过的场景与结果填写在文末；本机已有一条实测记录（[本地环境与运行方法](../local-environment.md)），可以直接引用，也可以自己再跑一次。
 
 > 在 09_crashpod 中，测试先创建缺少 DEPLOY_ENV 的支付服务并确认故障，再让 Agent 只根据服务名调查。Judge 检查是否表达了具体变量缺失，规则另外约束不产生 Skills 建议。这个语义分数能检查根因内容，但不自动保证答案来自查询，所以还应看实际日志或配置证据；本 case 没有强制某种工具顺序。效率记录 Agent 调查耗时、模型与工具调用次数、Token 和费用，Judge 与环境准备的口径分开。比较改动前后时固定场景、权限和标准，重复运行，再分析失败是没查到数据、丢失证据、推理错误还是评审问题。
 
@@ -127,7 +127,7 @@ Judge 可能误判，规则也可能过窄。固定清楚的要求，人工复�
 | 工具记录与规则断言怎样参与评估？ | [property_manager.py](../../tests/llm/utils/property_manager.py) 的 include_tool_calls 分支；[test_ask_holmes.py](../../tests/llm/test_ask_holmes.py) 的 forbidden_tools 与 max_tokens 断言 | 区分交给 Judge 的信息与程序直接判定的条件 |
 | 耗时与通过率的口径是什么？ | test_ask_holmes.py 中 ai.call() 的计时；[terminal_reporter.py](../../tests/llm/utils/reporting/terminal_reporter.py) 的 count_results() | 确认计时边界与有效运行分母 |
 
-核心学习可以用场景定义、教学回答与假设指标完成。如果已有真实结果，可选一条 Trace 核对根因、证据、耗时和用量；方案、已有实测、本次纸面推演分别记录。需要创建或运行新 eval 时，再按仓库的 create-eval 流程处理环境与验证。
+核心学习可以用场景定义、教学回答与假设指标完成。本机已经有一条真实结果，可以用它核对根因、证据、耗时和用量；方案、已有实测与纸面推演分别记录。需要创建或运行新 eval 时，再按仓库的 create-eval 流程处理环境与验证。
 
 ## 完成标准与当天记录
 

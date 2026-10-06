@@ -20,7 +20,7 @@
 
 ## 1 先看三种不同的问题
 
-主案例仍是 `app-09` 的 `payment-processing-worker`，启动日志的关键证据是 `Environment variable DEPLOY_ENV is undefined`。原 fixture 没有制造大日志，也没有强制 Compaction；以下只扩大同一调查的数据规模，推演各层设计，本次未运行这些变化。
+主案例仍是 `app-09` 的 `payment-processing-worker`，启动日志的关键证据是 `Environment variable DEPLOY_ENV is undefined`。原 fixture 没有制造大日志；2026-10-06 的实测报告里 Compaction 一栏为空，说明这次调查没有触发压缩。以下只扩大同一调查的数据规模，推演各层设计，这些变化仍未运行。
 
 | 遇到的情况 | 问题在哪里 | 优先怎么处理 |
 | --- | --- | --- |

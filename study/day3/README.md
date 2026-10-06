@@ -20,7 +20,7 @@
 
 ## 1 从接入需求理解为什么要插件化
 
-沿用已有 [09_crashpod](../../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml)。用户只问 `payment-processing-worker` 有什么问题。调查需要把服务名变成准确的 namespace 和 Pod 名，再读当前与上一次容器日志，结合配置确认 `DEPLOY_ENV` 缺失。本页推演合理的调查路径，本次未运行这条 eval。
+沿用已有 [09_crashpod](../../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml)。用户只问 `payment-processing-worker` 有什么问题。调查需要把服务名变成准确的 namespace 和 Pod 名，再读当前与上一次容器日志，结合配置确认 `DEPLOY_ENV` 缺失。本页按源码拆解这条路径；该 case 已于 2026-10-06 实跑通过（连续两次 1/1），实测调用顺序见 [本地环境与运行方法](../local-environment.md)。
 
 具体的两种能力是：`kubernetes/core` 中的 YAML 工具 `kubernetes_jq_query` 查询资源；`kubernetes/logs` 中默认的 Python 工具 `fetch_pod_logs` 读取日志。先理解它们怎样进入同一个调用框架，再讨论增加日志平台时怎样复用。
 
