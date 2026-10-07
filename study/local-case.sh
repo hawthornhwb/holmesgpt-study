@@ -105,7 +105,9 @@ case "${1:-help}" in
     check_cluster
     kubectl get deployment,pods -n app-09
     task_pod="$(kubectl get pods -n app-09 -l app=payment-processing-worker -o jsonpath='{.items[0].metadata.name}')"
-    kubectl logs "$task_pod" -n app-09 --previous
+    # The latest container has already exited in this fixture. Older container
+    # logs can disappear during rapid restarts, so read the latest attempt.
+    kubectl logs "$task_pod" -n app-09 --tail=20
     ;;
   collect)
     poetry run pytest tests/llm/test_ask_holmes.py -k '09_crashpod' \

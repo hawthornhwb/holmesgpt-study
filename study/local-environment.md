@@ -12,15 +12,15 @@ bash study/local-case.sh setup
 bash study/local-case.sh inspect
 ```
 
-`start` 创建或复用学习集群；`setup` 直接执行仓库 [09_crashpod](../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml) 的 `before_test`；`inspect` 查看 Deployment、Pod 和上一次容器日志。
+`start` 创建或复用学习集群；`setup` 直接执行仓库 [09_crashpod](../tests/llm/fixtures/test_ask_holmes/09_crashpod/test_case.yaml) 的 `before_test`；`inspect` 查看 Deployment、Pod 和最新一次容器运行的日志。这个 case 的容器会立即退出，旧容器日志可能已不可用，因此查看入口不依赖 `--previous`。
 
-应看到 `app-09` 中的 `payment-processing-worker` 反复重启，日志包含 `Environment variable DEPLOY_ENV is undefined`。这是对测试环境的验证，尚不代表 Agent 已找出根因。
+应看到 `app-09` 中的 `payment-processing-worker` 反复重启，状态可能在 `Error` 和 `CrashLoopBackOff` 之间变化，日志包含 `Environment variable DEPLOY_ENV is undefined`。这是对测试环境的验证，尚不代表 Agent 已找出根因。
 
 当前 eval harness 即使加 `--only-setup`，也会先检查模型 API，未配置模型时可能在创建资源前跳过。因此这里直接复用 fixture 的准备脚本；模型接好后，`eval` 使用原始 pytest 入口完成准备、调查、Judge 和清理。
 
-## 你稍后填写的 DeepSeek 配置
+## DeepSeek 配置
 
-本机文件：`/Users/weibo/.holmes/study/deepseek.env`，权限为 600，位于 Git 仓库外。填入三个实际值：
+本机文件：`/Users/weibo/.holmes/study/deepseek.env`，权限为 600，位于 Git 仓库外，目前三个参数均已填写。下面仅示意字段格式，更换接口时在本机文件中修改实际值：
 
 ```bash
 DEEPSEEK_BASE_URL="你的 OpenAI 兼容接口 Base URL"
@@ -61,7 +61,7 @@ bash study/local-case.sh stop
 
 Docker 镜像下载使用本机已有代理，配置只写入 `~/.colima/holmes-study/colima.yaml`；修改前的配置保存在同目录的 `colima.before-study-proxy.yaml`。创建 kind 节点时沿用 Docker 后台可访问的代理地址，避免把宿主机的 `127.0.0.1` 带进节点。该配置方式见 [Colima 配置](https://colima.run/docs/configuration/) 和 [Docker 后台代理配置](https://docs.docker.com/engine/daemon/proxy/)。
 
-**集群与故障（22:38 验证）**：`start` 复用已就绪的 `holmes-study` 节点，`setup` 执行 fixture 的 `before_test`。`app-09` 的 Deployment `payment-processing-worker` 为 0/1，Pod 处于 `CrashLoopBackOff`，上一次容器日志是 `Environment variable DEPLOY_ENV is undefined`，与 fixture 设计的故障一致。`inspect` 可以直接复现这三点。
+**集群与故障（22:38 验证）**：`start` 复用已就绪的 `holmes-study` 节点，`setup` 执行 fixture 的 `before_test`。`app-09` 的 Deployment `payment-processing-worker` 为 0/1，Pod 处于 `CrashLoopBackOff`，上一次容器日志是 `Environment variable DEPLOY_ENV is undefined`，与 fixture 设计的故障一致。查看当前现场可运行 `inspect`。
 
 **评测结果（2026-10-06，三次运行）**：
 
@@ -72,6 +72,8 @@ Docker 镜像下载使用本机已有代理，配置只写入 `~/.colima/holmes-
 
 **Judge 适配**：这家供应商的思考模式拒绝任何指定函数的 `tool_choice`，返回 `HTTP 400 Thinking mode does not support this tool_choice`；autoevals 的 `LLMClassifier` 一律指定 `select_choice`，因此 Judge 必然失败。仓库因此在 [judge_thinking_adapter.py](judge_thinking_adapter.py) 提供一个 pytest 插件，只给 Judge 请求加上 `thinking={"type": "disabled"}`，模型、提示词、期望答案和解析都不变，调查模型仍使用正常思考模式；`local-case.sh` 用 `-p judge_thinking_adapter` 加载它，仓库的评测代码没有改动。插件用正例与反例各验证一次：指出 `DEPLOY_ENV` 缺失得 1 分，只描述 `CrashLoopBackOff` 得 0 分。这也意味着这次分数来自“关闭思考的 Judge + 正常思考的调查模型”这一组合，换用原生支持强制工具调用的供应商时应当去掉插件再复测。
 
-**范围说明**：以上实测只覆盖原 case 的三次运行。大日志、过滤与截断、摘要、落盘、Compaction 和审批都仍是同场景推演，没有运行。费用与单价未核对，报告中的费用为空。
+**范围说明**：以上完整评测只覆盖原 case 的三次运行。允许列表拒绝与要求审批的分支已在 22:45 那次运行中触发；人工批准后的续跑仍未验证。大日志、过滤与截断、摘要、落盘和 Compaction 都仍是同场景推演，没有运行。费用与单价未核对，报告中的费用为空。
+
+**现场恢复（2026-10-07）**：重新执行原 fixture 的 `before_test`，恢复 `app-09` 的故障 Deployment。直接调用 Holmes 的 `kubernetes_jq_query` 找到真实 Pod，再调用 `fetch_pod_logs`，成功读出 `Environment variable DEPLOY_ENV is undefined`。这次检查只验证环境与实际工具，没有调用调查模型或 Judge。故障资源保留供学习使用；`inspect` 已改为读取最新容器日志。
 
 DeepSeek 的接口、model ID 和密钥保存在本机文件 `~/.holmes/study/deepseek.env`，未写入仓库。上面的评测结果来自本机实跑，完整日志和报告在 `~/.holmes/study/eval-09-*/`；未运行的部分已单独标注。
