@@ -2,6 +2,8 @@
 
 2026-10-06 改写为讲义。对应 10-04 版简历中“智能故障诊断 Agent”的第三条：工具调用安全。
 
+2026-10-07 修订：纠正审批与 API 访问的顺序，说明 fetch_pod_logs 的工具集引用缺口；审批推演改用 Bash 日志访问，并补充离线验证和迁移自测。
+
 **这份文档是自足的：今天需要看的源码已经按调用顺序摘录在正文里，不必再打开仓库对照。** 每个片段都标了 `文件:行号`，想深挖时再跳过去。全部片段来自当前工作区，行号是 2026-10-06 核对的。
 
 > 片段说明：为便于阅读，摘录时做过少量排版整理 —— 换行、缩进、省略号（`...`）处有删减；函数名、参数名、字段名和逻辑顺序与源码一致，代码行均为源码原文。若有个别英文注释改写为中文，会标注“讲义译注”，标注处不是源码原文；要逐字对照时按行号打开源文件。
@@ -14,35 +16,44 @@
 | --- | --- | --- |
 | 先找到准确的 namespace 与 Pod 名 | `kubernetes_tabular_query` / `bash` | 3、4 节 |
 | 读启动日志（证据 `Environment variable DEPLOY_ENV is undefined`） | `fetch_pod_logs` | 5、6 节 |
-| 核对 Deployment 配置 / 需要人工确认时暂停并恢复同一次调用 | `kubernetes_jq_query` / `bash`；审批 + Token（推演，未运行） | 5、7 节 |
+| 核对 Deployment 配置 / 需要人工确认时暂停并恢复一次 Bash 日志访问 | `kubernetes_jq_query` / `bash`；完整审批 + Token 恢复（推演，未运行） | 5、7 节 |
 
 场景回顾见 [完整案例](../interview-plan.md) 前四步：用户只给服务名，Agent 要先发现准确对象，再读日志。该 case 已于 2026-10-06 实跑通过（22:45、22:48 连续两次 1/1）；其中 22:45 那次**真实触发过一条 Bash 策略分支**，见第 4 节。实测只引用 [本地环境与运行方法](../local-environment.md)，本讲义不引入该文件之外的数字。
 
 ## 建议用法
 
-**当天目标**：完成后能用 2 分钟解释这次日志访问的权限、参数与审批恢复设计，并回答 5 个核心追问；源码按具体疑问查阅。
+**核心路线**：第 1 节控制职责与分支 → 第 2 节 invoke 骨架和日志工具引用缺口 → 第 3 节允许/拒绝/待审批三态 → 第 4 节实测 → 第 5 节三条参数路径表 → 第 6 节 RBAC 边界 → 第 7 节 Token 载荷与恢复结论。必读代码是审批返回、Token 载荷和恢复校验；其余先读解释与表格。
+
+**深入选读**：前缀匹配全部细节、Shell 模板引用实现、保存片段、签名密钥生命周期和真实集群权限实验。完整人工审批恢复另作实验，不计入当天核心用时。
 
 | 顺序 | 时间 | 要做什么 | 留下什么 |
 | --- | --- | --- | --- |
-| 1 | 50 分钟 | 读第 1–6 节，每读完一个片段先说一句“这段在解决什么” | 控制职责表与三条执行路径 |
-| 2 | 40 分钟 | 读第 7 节推演审批与 Token，练 2 分钟讲述并回答 5 个追问 | 一条审批路径和一项取舍 |
+| 1 | 5 分钟 | 脱稿复习 Day 4 的证据边界 | 查询结果与执行权限的区别 |
+| 2 | 35–50 分钟 | 按核心路线解释每个控制点 | 职责表与审批分支 |
+| 3 | 15 分钟 | 第 9.1 节最小验证 | Token 正反例与日志审批缺口 |
+| 4 | 20 分钟 | 第 8 节口述与核心追问 | 自己的录音、时长与一个取舍 |
+| 5 | 15 分钟 | 第 9.2 节陌生变式，填写记录 | 合法审批与实际权限的边界 |
 
-时间有限就只走第 1 项，读完第 7 节再补第 2 项；卡住时按第 9 节核对至多两段资料，达到第 10 节的验收标准即可结束。
+约 90–110 分钟，可拆成两次。首次阅读按实际卡点延长，深入实现按追问选读；最小验证未完成时记录待补。
 
 ## 1 全景：同一次日志访问上的五道控制
 
-一次调用从模型到执行只有一条路，但路上有五道门：
+五个控制点不是对所有工具依次执行的流水线。配置检查需要工具持有工具集引用，命令策略只适用于完整 Bash；需要审批时，在执行命令和访问 API 之前暂停：
 
 ```text
 模型提出 工具名 + 参数 + 调用 ID
-→ 门 1 配置门（第 2 节）→ 门 2 策略门（第 3、4 节）→ 门 3 参数门（第 5 节）
-→ 门 4 权限门：Kubernetes 按实际身份判断（第 6 节）
-→ 门 5 人的门：需要审批时暂停并绑定调用（第 7 节）
+→ 配置审批检查；未命中时再问工具自己的审批钩子（Bash 在此分析命令）
+  ├─ 不需审批：进入参数处理与具体实现
+  ├─ 需审批：暂停 → 签发 Token → 人的决定 → 恢复校验
+  │           ├─ 批准且验证通过：进入参数处理与具体实现
+  │           └─ 拒绝、无审批入口或验证失败：返回错误，不执行命令
+  └─ Bash 策略拒绝：由具体实现返回错误，不执行命令
+→ 实际执行查询时，由 Kubernetes 按访问身份检查 RBAC
 ```
 
 | 控制点 | 负责什么 | 代码位置 | 挡不住什么 |
 | --- | --- | --- | --- |
-| 配置门 | 按工具名（支持通配）要求审批 | `holmes/core/tools.py` | 不是安全默认值：默认空列表表示不审批 |
+| 配置门 | 按工具名（支持通配）要求审批 | `holmes/core/tools.py` | 默认空列表表示不审批；缺少 `toolset` 引用时检查也不生效 |
 | 策略门 | 按命令结构判定允许 / 拒绝 / 待审批 | `bash/validation.py`、`bash/bash_toolset.py` | 只作用于 Bash 工具，不是所有工具的公共闸门 |
 | 参数门 | 决定参数能否改变执行语义 | `tools.py`、`kubernetes_logs.py`、`kubernetes.yaml` | 不做权限判断；模板写法错了引用保护会失效 |
 | 权限门 | 实际身份能否读这个资源 | Kubernetes RBAC | 审批通过也不会增加权限 |
@@ -62,7 +73,7 @@ class ApprovalRequirement(BaseModel):
     prefixes_to_save: Optional[List[str]] = None
 ```
 
-这段判断放在所有工具共用的 `invoke()` 骨架最前面，早于参数类型对齐和具体实现（`holmes/core/tools.py:392`，省略了中间一条多行日志）。三个设计点：**输入**是模型给的参数加调用上下文，**输出**是 `StructuredToolResult(status=APPROVAL_REQUIRED)`，此时 `_invoke()` 根本没被调用，所以待审批的调用一定没有执行过；`user_approved=True` 时整段跳过，这是第 7 节恢复路径的开关；`prefixes_to_save` 被写回 `params["suggested_prefixes"]`，随之进入展示给用户的待审批对象，服务端保存片段时还要再核对（第 7 节）。
+这段判断放在所有工具共用的 `invoke()` 骨架前部，早于参数类型对齐和具体实现（`holmes/core/tools.py:392`，省略了中间一条多行日志）。三个设计点：**输入**是模型给的参数加调用上下文，**输出**是 `StructuredToolResult(status=APPROVAL_REQUIRED)`，此时 `_invoke()` 根本没被调用，所以这次待审批调用尚未执行；`user_approved=True` 时整段跳过，这是第 7 节恢复路径的开关；`prefixes_to_save` 被写回 `params["suggested_prefixes"]`，随之进入展示给用户的待审批对象，服务端保存片段时还要再核对（第 7 节）。
 
 ```python
         if not context.user_approved:
@@ -118,6 +129,8 @@ class ApprovalRequirement(BaseModel):
         """Override to implement tool-specific approval logic."""
         return None
 ```
+
+**当前日志工具的实现缺口（2026-10-07 离线核对）**：`_check_approval_config()` 用 `getattr(self, "toolset", None)` 取工具集，缺少该属性就返回 `None`；`PodLoggingTool` 却只在构造时保存 `self._toolset = toolset`（`logging_utils/logging_api.py:176`）。因此，只在 `kubernetes/logs` 配置 `approval_required_tools: ["fetch_pod_logs"]`，并不能保证暂停审批。第 9.1 节可重现这个检查结果。本页记录该缺口，审批流程改用持有 `toolset` 引用的 Bash 工具讲解；不能把通用接口存在说成所有工具都已接通配置。
 
 ## 3 第二道门：Bash 的允许 / 拒绝 / 待审批
 
@@ -406,7 +419,9 @@ JSON Schema 只描述参数类型，不能代替上面任何一种执行检查�
 
 ## 7 第五道门：人工审批与签名 Token
 
-前四道门都在一个进程、一次调用内完成，这一道门要跨过“人”的时间，拆成三步：保存待审批调用 → 绑定签名 Token → 恢复时校验。
+需要审批的调用在参数处理和 API 访问前暂停，跨过“人”的时间，再继续执行。这里用同一调查的 Bash 日志访问推演：在 **`bash` 工具集**配置 `approval_required_tools: ["bash"]`，模型提出 `command: "kubectl logs <准确 Pod 名> -n app-09"`、`suggested_prefixes: ["kubectl logs"]`。完整交互恢复未在本 case 实跑；不能用第 2 节有引用缺口的 `fetch_pod_logs` 配置替代。
+
+过程拆成三步：保存待审批调用 → 绑定签名 Token → 恢复时校验。
 
 **第一步，暂停。** 工具返回 `APPROVAL_REQUIRED` 后，框架先把这条调用登记成待审批对象，再在对话历史里给它打标记并签发 Token（`holmes/core/tool_calling_llm.py:1416`，第一段登记待审批调用并保留完整参数，第二段打标记并签发 Token）。两个关键事实：**待审批的调用留在历史消息里**，客户端只需要回传“调用 ID + 决定”；**Token 与这条历史消息一一对应**，不与人或会话绑定。
 
@@ -434,7 +449,7 @@ JSON Schema 只描述参数类型，不能代替上面任何一种执行检查�
                         tool_call["approval_token"] = token
 ```
 
-**第二步，Token 绑定什么。** Token 是 HS256 JWT（`holmes/utils/approval_tokens.py:64`，第一段是 args_hash 的口径，第二段是 mint_token 的载荷），载荷只有调用 ID、工具名、参数哈希和签发 / 过期时间（`TOKEN_TTL_SECONDS` 是 30 天，见 `holmes/utils/approval_tokens.py:24`）。参数本身进不了 Token，只进哈希：先把 JSON 字符串解析、再按 `sort_keys=True` 和紧凑分隔符重新序列化，因此**键顺序与空白差异不影响哈希，参数值一改哈希就变**；空值、`None`、无法解析的输入都归一成 `{}`。
+**第二步，Token 绑定什么。** Token 是 HS256 JWT（`holmes/utils/approval_tokens.py:64`，第一段是 args_hash 的口径，第二段是 mint_token 的载荷），载荷只有调用 ID、工具名、参数哈希和签发 / 过期时间（`TOKEN_TTL_SECONDS` 是 30 天，见 `holmes/utils/approval_tokens.py:24`）。参数本身进不了 Token，只进哈希：先把 JSON 字符串解析、再按 `sort_keys=True` 和紧凑分隔符重新序列化，因此**键顺序与空白差异不影响哈希，参数值一改哈希就变**；空字符串、纯空白和 `None` 归一成 `{}`，非法 JSON 会抛解析异常，恢复校验会将其包装为审批验证失败。
 
 ```python
 def args_hash(args_json_string: Optional[str]) -> str:
@@ -532,20 +547,21 @@ def args_hash(args_json_string: Optional[str]) -> str:
 
 至少记住一项取舍：严格的策略能减少误操作，也会挡住合理的排查动作；人工审批提供人的判断，代价是中断自动调查，并要求用户看懂自己要批准什么。Token 的边界也要说清：**它证明“这条调用被签发过”，不证明审批人是谁**；恢复时删字段只保证同一份历史里不会重复兑现，客户端保留旧历史仍可在有效期内重放，所以“完整的一次性防重放”还需要会话或服务端的其他机制。
 
-### 7.1 四种情形（除第一条里的读取路径与 22:45 那条外，都是推演，未运行）
+### 7.1 各种情形的实际验证范围
 
 | 情形 | 会走到哪道门 | 预期结果 | 状态 |
 | --- | --- | --- | --- |
 | `fetch_pod_logs` 读 app-09 某个 Pod 日志 | 配置门未命中 → 直接执行 | 执行；若身份无 `pods/log` 权限则由 RBAC 返回 Forbidden | 读取路径已实测；Forbidden 分支未运行 |
 | 完整 Bash 命令的片段不在允许列表 | 策略门返回 `APPROVAL_REQUIRED` | pytest 入口无审批交互 → 改写为 `ERROR` | 22:45 实测 |
-| 配置 `approval_required_tools: ["fetch_pod_logs"]` | 配置门命中 → 暂停并签发 Token | 保留准确工具、参数与调用 ID，由人决定；无审批交互时按拒绝处理 | 未运行 |
-| 待审批的日志请求恢复时把 `namespace` 从 `app-09` 改成 `prod` | 恢复校验比对 `args_hash` | 哈希不匹配 → 拒绝；只带“已批准”标记不足以通过 | 未运行 |
+| 在日志工具集配置 `approval_required_tools: ["fetch_pod_logs"]` | 通用检查读不到 `toolset` 引用 | 当前检查返回 `None`，不能声称配置已触发审批 | 2026-10-07 离线检查；未执行日志查询 |
+| 在 Bash 工具集配置 `approval_required_tools: ["bash"]`，提出上述日志命令 | 配置门命中 → 暂停；支持交互时签发 Token | 人工决定后恢复；无交互时按拒绝处理 | 配置检查可离线核对；完整交互未运行 |
+| 待审批 Bash 日志请求将 `command` 中的 `-n app-09` 改成 `-n prod` | 恢复校验比对 `args_hash` | 内容不匹配 → 拒绝；“已批准”标记不足以通过 | Token 原语可按第 9.1 节离线验证；完整恢复未运行 |
 
 ## 8 面试讲述与核心追问
 
 先借助骨架讲一遍，再合上文档用自己的话讲第二遍。简历写的是“分析并验证”这些机制，实际验证范围见第 10 节。
 
-> 在支付服务重启这个 case 里，读取日志的权限由实际 Kubernetes 身份决定，审批通过也不能增加 `pods/log` 权限。参数安全要看执行路径：Python 日志工具把参数作为数组交给 `subprocess`，不过 Shell；YAML 资源查询工具要经过 `sanitize()`（`shlex.quote`）赋值和 `"$VAR"` 引用，模板位置写错引用保护就失效；完整 Bash 工具先过前缀匹配的允许 / 拒绝 / 待审批三态判定，而它仍由 `/bin/bash` 执行。如果配置要求日志读取也需审批，框架把待审批的调用留在对话历史里，并签发一个绑定调用 ID、工具名与参数哈希的 JWT，恢复时重新校验这三项，例如 namespace 从 `app-09` 改成 `prod` 就无法通过。实测里真实出现过一次策略分支：片段没命中允许列表，pytest 入口没有审批交互，于是按拒绝处理，模型依据错误信息改写了命令写法。设计难点是让每道门各自约束对应问题，同时说清 Token 的内容绑定、身份认证与一次性防重放之间的边界。
+> 在支付服务重启这个 case 里，日志访问受实际 Kubernetes 身份约束，人工批准也不会增加权限。Python 日志工具用参数数组调用 subprocess，YAML 查询要正确引用 Shell 模板参数，完整 Bash 另有允许、拒绝和待审批三态策略。需要审批时，先暂停并签发绑定调用 ID、工具名与参数哈希的 Token；人工批准、恢复校验通过后，才执行查询并接受 RBAC 检查。例如待审批 Bash 日志命令中的 namespace 被改动，Token 校验就应拒绝。本机实测过无审批入口时命令被拒、模型据错误改写命令；完整人工批准恢复仍是推演。另外，当前 Python 日志工具的工具集引用没有接通通用审批配置，不能声称只加审批列表就生效。Token 绑定内容的作用，也要与身份认证和防重放分开说明。
 
 每个追问先回答 30–60 秒，卡住后只补当前问题。
 
@@ -565,12 +581,51 @@ def args_hash(args_json_string: Optional[str]) -> str:
 
 | 当前疑问 | 查哪一小段 | 查到什么即可停止 |
 | --- | --- | --- |
-| 审批配置在哪里生效？ | [tools.py](../../holmes/core/tools.py) 的 `_check_approval_config()` 与 `Toolset.approval_required_tools` | `fnmatch` 通配匹配，默认空列表 |
+| 审批配置在哪里生效？ | [tools.py](../../holmes/core/tools.py) 的 `_check_approval_config()`；[logging_api.py](../../holmes/plugins/toolsets/logging_utils/logging_api.py) 的 `PodLoggingTool.__init__()` | 默认空列表；检查需要 `toolset` 引用，日志工具只有 `_toolset` |
 | 完整命令怎样判定？ | [validation.py](../../holmes/plugins/toolsets/bash/validation.py) 的 `validate_segment()` / `validate_command()`；[bash_toolset.py](../../holmes/plugins/toolsets/bash/bash_toolset.py) 的 `requires_approval()` | 允许、拒绝、待审批三态，以及 `DenyReason` 分类 |
 | 本例参数是否经过 Shell？ | [kubernetes_logs.py](../../holmes/plugins/toolsets/kubernetes_logs.py) 的 `_fetch_kubectl_logs()`；[kubernetes.yaml](../../holmes/plugins/toolsets/kubernetes.yaml) 的 SECURITY 注释与 `KIND` / `JQ_FILTER` 赋值 | 一个是参数数组，一个需要模板与变量引用正确配合 |
 | Token 绑定什么，恢复在哪里校验？ | [approval_tokens.py](../../holmes/utils/approval_tokens.py) 的 `args_hash()` / `mint_token()` / `verify_token()`；[tool_calling_llm.py](../../holmes/core/tool_calling_llm.py) 的 `_execute_tool_decisions()` | 只校验调用 ID、工具名与参数哈希；失败必然拒绝 |
 
 如果需要一条验证依据，可阅读 [Token 测试](../../tests/test_approval_tokens.py) 的篡改或过期断言，或者 [Bash 审批测试](../../tests/toolsets/bash/test_bash_approval_flow.py) 的允许、拒绝、待审批例子。模板测试证明渲染结果，Mock 测试证明对应程序分支；真实集群权限需要结合实际部署验证。测试执行按疑问选做。
+
+### 9.1 最小验证：Token 正反例与配置引用（15 分钟）
+
+在项目根目录执行现有 Token 用例；它们不运行命令、不访问集群或模型：
+
+```bash
+poetry run pytest tests/test_approval_tokens.py \
+  -k 'test_mint_then_verify_round_trip or test_verify_rejects_all_failure_modes_uniformly' \
+  --no-cov -n 0 -q
+```
+
+读同名测试的输入与断言，写清原调用验证成功，而改工具名、调用 ID 或参数值分别为什么失败。再核对日志配置引用缺口：
+
+```bash
+poetry run python - <<'PY'
+from holmes.plugins.toolsets.kubernetes_logs import KubernetesLogsToolset
+
+toolset = KubernetesLogsToolset()
+toolset.approval_required_tools = ["fetch_pod_logs"]
+tool = toolset.tools[0]
+print("has_toolset:", getattr(tool, "toolset", None) is not None)
+print("approval_requirement:", tool._check_approval_config())
+PY
+```
+
+当前预期是 `False` 和 `None`。构造工具集仅检查本地 kubectl 客户端；不要调用日志查询来验证这个缺口。完成标志是能解释两类结果：Token 绑定测试证明原语，配置检查暴露引用问题；两者都不能证明完整人工审批恢复、审批人身份或真实 RBAC。
+
+### 9.2 陌生变式与隔天复习
+
+合上正文先答：在已经接通审批的工具上，用户同意了访问，Token 的签名、有效期与内容都正确，但当前 Kubernetes 身份没有 `pods/log` 权限。接下来应该看到什么？能否换 namespace 或其他身份继续使用原 Token？
+
+<details>
+<summary>回答后再看检查点</summary>
+
+执行实际查询时仍应收到 Forbidden，保留该错误并说明证据不足。改变工具参数必须重新满足内容绑定和审批要求；审批不会授予数据源权限，也不能据此使用未授权身份。核对其他已授权证据来源时，应重新判断其权限与审批要求。
+
+</details>
+
+隔天用 5 分钟画出“审批前暂停 → 恢复校验 → 实际查询”的分支，解释一次 Token 内容不匹配和一次 Forbidden，并复述日志工具配置缺口。
 
 ## 10 完成标准与当天记录
 
@@ -579,6 +634,8 @@ def args_hash(args_json_string: Optional[str]) -> str:
 - [ ] 能完成 2 分钟讲述，并回答 5 个核心追问。
 - [ ] 能说明参数篡改为何被拒，并说出一项取舍和 Token 的一项边界。
 - [ ] 核对一条具体实现或测试依据，说明实际验证了什么、没有验证什么。
+- [ ] 完成第 9.1 节最小验证，区分 Token 原语、配置引用和完整恢复的证明范围。
+- [ ] 独立回答第 9.2 节陌生变式，说明审批与 RBAC 的关系。
 
 今天的核心成果是一页自己的回答。函数名记忆与测试执行数量不作为验收标准。
 
@@ -586,11 +643,16 @@ def args_hash(args_json_string: Optional[str]) -> str:
 - 我对三类安全问题的解释：
 - 我的控制职责表与审批路径：
 - 我的 2 分钟设计回答：
+- 我的录音实际时长与删改内容：
 - 一个允许、拒绝或待审批例子：
 - 参数篡改的处理方式，以及 Token 的作用边界：
 - 一个方案取舍：
 - 核对的一条依据及其证明范围：
 - 我亲手分析或验证的部分：
+- 最小验证的结果、关键断言与证明范围（未执行则注明）：
+- 陌生变式：已知信息、缺口、下一步，以及看检查点后的修订：
+- 隔天复习日期与结果（独立答出 / 提示后答出 / 待补）：
+- 对应简历的个人动作、可展示依据和未验证范围：
 - 仍卡住的具体追问：
 
 可以直接在聊天里开始：“带我学 Day 5，沿 09_crashpod 分析这次日志访问的权限、参数和审批恢复，每次先讲一个设计难点，再检查我的解释。”
